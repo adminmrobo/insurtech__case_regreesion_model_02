@@ -1,0 +1,163 @@
+{
+ "cases": [
+  {
+   "key": "motor",
+   "field": "자동차보험 손해액 (severity 회귀)",
+   "name": "프랑스 자동차 대인·대물배상 손해액 freMTPL2sev (CASdatasets)",
+   "short": "자동차보험 손해액",
+   "rate_label": "상위 1% 손해가 차지하는 금액 비율",
+   "rate_text": "38.0% (손해 26,444건 중 상위 264건)",
+   "summary": "프랑스 자동차보험 제3자 배상책임(MTPL) 계약의 손해 금액 26,444건. 중앙값 1,172, 평균 2,265.5, 최대 4,075,401(원 자료의 금액 단위). 보험료 산정 교재와 scikit-learn 예제에서 ‘빈도 × 심도’ 모델의 표준 예로 쓰입니다.",
+   "same": "금액 하나를 맞히는 회귀, 오른쪽 꼬리가 긴 분포, 그리고 <b>소수의 큰 사고가 전체 금액의 큰 몫</b>(상위 1% 가 38.0%, 상위 10% 가 59.9%). 우리 데이터의 흡연자처럼, 소수 집단이 금액을 좌우합니다.",
+   "why": "사고 대부분은 소액 수리지만, 드물게 사람이 다치거나 장기 배상으로 이어지면 금액이 수백~수천 배가 됩니다. 평균 2,266 가 중앙값 1,172 의 1.93배입니다.",
+   "strategy": "빈도(포아송)와 심도(감마 GLM)를 나눠 모델링하고, 순보험료는 트위디 GLM 으로 한 번에 맞히기도 합니다(scikit-learn 예제). 이 예제는 계산 편의상 손해액을 200,000 에서 잘랐지만, <b>우리는 목표값을 자르지 않습니다</b>. 대형 손해는 따로 분리해 모델링하는 쪽을 택합니다.",
+   "sources": [
+    [
+     "Tweedie regression on insurance claims (scikit-learn 예제, 1.4판 문서)",
+     "https://scikit-learn.org/1.4/auto_examples/linear_model/plot_tweedie_regression_insurance_claims.html"
+    ],
+    [
+     "freMTPL2sev 데이터 파일 (CASdatasets R 패키지 저장소, dutangc/CASdatasets)",
+     "https://raw.githubusercontent.com/dutangc/CASdatasets/master/data/freMTPL2sev.rda"
+    ]
+   ],
+   "note": "건수 · 중앙값 · 평균 · 최대 · 상위 비율은 위 데이터 파일을 f5.py 로 직접 읽어 계산한 값입니다(출처 문서의 숫자가 아님). 금액 단위는 원 자료를 따릅니다.",
+   "tail_share": 0.3798643155348226,
+   "top10_share": 0.5992149823892289,
+   "zero_share": null,
+   "computed": true
+  },
+  {
+   "key": "reins",
+   "field": "재보험 대형사고 (극단 꼬리)",
+   "name": "덴마크 화재 대형 손해 danish (Copenhagen Re, 1980–1990)",
+   "short": "재보험 대형사고",
+   "rate_label": "상위 1% 손해가 차지하는 금액 비율",
+   "rate_text": "17.2% (손해 2,167건 중 상위 21건)",
+   "summary": "코펜하겐 재보험사가 모은 1980–1990년 덴마크 화재 대형 손해 2,167건(1985년 가치, 백만 덴마크 크로네). 중앙값 1.78, 최대 263.25. 극값 이론(EVT) 교재의 대표 데이터입니다.",
+   "same": "모든 행이 이미 ‘큰 손해’인데도 그 안에서 다시 꼬리가 깁니다. 상위 1% 가 17.2%, 상위 10% 가 46.0% 를 차지합니다.",
+   "why": "화재 손해의 크기는 건물 규모 · 번짐 · 업무 중단 같은 요인이 곱해져 커지므로, 몇 건이 나머지 수백 건을 합친 것보다 큽니다. McNeil(1997)은 가장 큰 손해 1건을 빼기만 해도 꼬리 모수 추정이 0.50 → 0.39, 0.999 분위수가 95 → 77 로 바뀐다고 보고했습니다.",
+   "strategy": "임계값 위의 초과분에 일반화 파레토 분포(GPD)를 맞추는 극값 이론(peaks over threshold, 최대우도 추정)으로 꼬리를 따로 모델링합니다(McNeil, 1997). 결과가 가장 큰 몇 건에 민감하므로 임계값을 바꿔 가며 확인합니다.",
+   "sources": [
+    [
+     "McNeil, A. J. (1997). Estimating the Tails of Loss Severity Distributions Using Extreme Value Theory. ASTIN Bulletin 27(1)",
+     "https://www.cambridge.org/core/services/aop-cambridge-core/content/view/745048C645338C953C522CB29C7D0FF9/S0515036100011934a.pdf/estimating-the-tails-of-loss-severity-distributions-using-extreme-value-theory.pdf"
+    ],
+    [
+     "danish: Danish reinsurance claim dataset (fitdistrplus 문서)",
+     "https://search.r-project.org/CRAN/refmans/fitdistrplus/html/danish.html"
+    ],
+    [
+     "danish 데이터 파일 (evir R 패키지 저장소)",
+     "https://raw.githubusercontent.com/cran/evir/master/data/danish.rda"
+    ]
+   ],
+   "note": "2,167건 · 중앙값 · 최대 · 상위 비율은 evir 패키지의 danish 파일을 f5.py 로 직접 계산했습니다. McNeil(1997)의 분석은 1백만 크로네 초과 2,156건을 썼고, 꼬리 모수 0.497(임계값 10)은 논문 값입니다.",
+   "tail_share": 0.17213199111676575,
+   "top10_share": 0.4596984845695077,
+   "zero_share": null,
+   "computed": true
+  },
+  {
+   "key": "los",
+   "field": "병원 재원일수 (기간 회귀)",
+   "name": "포르투갈 공공 급성기 병원 장기 재원 이상치 (2000–2009)",
+   "short": "병원 재원일수",
+   "rate_label": "상위 3.9% 장기 재원이 차지하는 입원일수 비율",
+   "rate_text": "19.2% (입원 9,253,087건 중 3.9%)",
+   "summary": "포르투갈 공공 급성기 병원의 입원 약 925만 건을 분석해, 진단군(DRG) · 연도별 기준(기하평균 + 2 표준편차)을 넘는 장기 재원을 찾았습니다. 장기 재원은 3.9%, 이들이 전체 입원일수의 19.2%를 차지했습니다.",
+   "same": "재원일수도 오른쪽으로 긴 분포(논문: 대략 로그정규)이고, 소수(3.9%)가 전체의 큰 몫(19.2%)을 씁니다. 장기 재원의 중앙값 25일 · 평균 35.5일, 나머지는 중앙값 4일 · 평균 6.0일.",
+   "why": "합병증 · 동반 질환 · 퇴원 후 갈 곳 같은 요인이 겹치면 입원이 길어지고, 그런 경우는 드물지만 길이가 몇 배입니다.",
+   "strategy": "논문은 로그 변환이 치우침을 줄인다고 쓰고, 진단군별 기준으로 이상치를 ‘따로 분류’한 뒤 로지스틱 회귀(GEE)로 이상치가 될 요인을 분석했습니다. 평균 재원일수 하나만 보고하지 않고, 이상치 몫을 따로 보는 방식입니다.",
+   "sources": [
+    [
+     "Freitas, A. 외 (2012). Factors influencing hospital high length of stay outliers. BMC Health Services Research 12:265",
+     "https://bmchealthservres.biomedcentral.com/track/pdf/10.1186/1472-6963-12-265"
+    ]
+   ],
+   "note": "숫자는 모두 논문 값입니다. 상위 1% 비율은 논문에 없어 비교 그림에는 (3.9%, 19.2%) 한 점만 표시합니다.",
+   "tail_point": [
+    0.039,
+    0.192
+   ],
+   "tail_share": null,
+   "top10_share": null,
+   "zero_share": null,
+   "computed": false
+  },
+  {
+   "key": "meps",
+   "field": "의료비 지출 집중 (인구 전체)",
+   "name": "미국 민간인 비시설 인구의 의료비 지출 집중 (AHRQ MEPS, 2022)",
+   "short": "의료비 지출 집중",
+   "rate_label": "상위 1% 사람이 차지하는 의료비 비율",
+   "rate_text": "21.7% (상위 1% = 연 $80,990 이상)",
+   "summary": "미국 가구 의료비 패널조사(MEPS) 2022년: 상위 1%가 전체 의료비의 21.7%, 상위 5%가 49.7%, 상위 10%가 65.9%를 썼고, 하위 50%는 2.8%만 썼습니다. 상위 10%의 기준은 연 $16,202 이상.",
+   "same": "우리 데이터와 같은 ‘사람 1명의 1년 의료비’입니다. 다만 집중이 훨씬 강합니다: 우리 데이터의 상위 1% 는 3.9%, 하위 50% 는 18.5%.",
+   "why": "AHRQ 는 고령과 여러 만성질환이 지출이 고르지 않은 이유의 일부라고 설명합니다(2014년 보고서 #497). 의료비는 대부분의 사람에게 작고, 큰 치료가 필요한 소수에게 몰립니다.",
+   "strategy": "고액 지출자 집단의 특성을 따로 분석합니다(보고서 제목 그대로 ‘고액 지출자의 특성’). 모델링에서는 평균 하나가 아니라 상위 구간 오차를 따로 보고, 0 원 근처가 많은 경우 ‘쓸까 · 얼마나’를 나눈 2단계 모델을 씁니다(실무 일반론).",
+   "sources": [
+    [
+     "Hernandez-Viver, A. & Mitchell, E. M. (2025.3). Concentration of Healthcare Expenditures and Selected Characteristics of People with High Expenses, 2018–2022. AHRQ MEPS Statistical Brief #560",
+     "https://meps.ahrq.gov/data_files/publications/st560/stat560.shtml"
+    ],
+    [
+     "Mitchell, E. M. (2016.11). Concentration of Health Expenditures in the U.S. Civilian Noninstitutionalized Population, 2014. AHRQ MEPS Statistical Brief #497",
+     "https://meps.ahrq.gov/mepsweb/data_files/publications/st497/stat497.shtml"
+    ]
+   ],
+   "note": "숫자는 보고서 값입니다. 우리 데이터(최소 $1,122, 0 원 없음)와 달리 MEPS 에는 의료비가 없는 사람도 포함되어 하위 50% 비율이 작습니다. 원래 분야 목록의 ‘보증 수리비’는 꼬리 비율을 직접 확인할 수 있는 공개 출처를 찾지 못해 이 사례로 바꿨습니다.",
+   "tail_points": [
+    [
+     0.01,
+     0.217
+    ],
+    [
+     0.05,
+     0.497
+    ],
+    [
+     0.1,
+     0.659
+    ],
+    [
+     0.5,
+     0.972
+    ]
+   ],
+   "tail_share": 0.217,
+   "top10_share": 0.659,
+   "zero_share": null,
+   "computed": false
+  }
+ ],
+ "ours": {
+  "name": "우리 데이터 (건강보험 의료비 1,337명)",
+  "tail_share": 0.039285561149620556,
+  "top10_share": 0.31789152406099347,
+  "bottom50": 0.1852761667254216,
+  "zero_share": 0.0,
+  "smoker_people": 0.2049364248317128,
+  "smoker_amount": 0.4946306073923848
+ },
+ "priorities": [
+  [
+   "1. 소수 집단의 모양을 모델에 넣기",
+   "흡연 × 비만(BMI 30 이상) 상호작용, 또는 경계를 스스로 찾는 트리 모델",
+   "흡연자 MAE · 상위 10% MAE (2부 2 · 3편)",
+   "MEPS: 고액 지출자 집단의 특성을 따로 분석 · 우리 데이터: 흡연자 20.5% 가 금액의 49.5%"
+  ],
+  [
+   "2. 평균 하나로 보고하지 않기",
+   "그룹별 · 금액 구간별 오차, 과소 추정 비율과 비용(과소 : 과대 = 3 : 1)",
+   "그룹별 MAE · 평균 잔차 · 과소 추정 비용 (2부 2편, 1부 4편)",
+   "Freitas 2012: 3.9% 의 장기 재원이 입원일수의 19.2% — 평균만 보면 숨는다"
+  ],
+  [
+   "3. 목표 분포에 맞는 손실 · 모델 고르기",
+   "감마 · 트위디 GLM 또는 분위 회귀. 로그 변환은 달러로 되돌려 그룹별로 검증. 극단 꼬리(EVT)는 이 데이터에는 아직 필요 없음",
+   "달러 기준 5-Fold MAE · R² · 그룹별 역변환 편향 (2부 1 · 4편)",
+   "freMTPL: 심도에 감마 GLM · McNeil 1997: 극단 꼬리는 따로. 우리 상위 1% 비율은 3.9% 로 가벼운 편"
+  ]
+ ]
+}

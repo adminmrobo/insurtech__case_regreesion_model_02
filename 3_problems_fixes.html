@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<script>
+(function(){var KEY='it4_lang',AVAILABLE=['ko'],LANGS=['ko','en','zh','ja','uz','ru'];
+var cur=document.documentElement.lang||'ko';cur=cur.slice(0,2);
+function root(){var p=location.pathname;var dir=p.replace(/[^\/]*$/,'');if(cur!=='ko'){dir=dir.replace(/[^\/]+\/$/,'')}return dir}
+function file(){var f=location.pathname.split('/').pop();if(!f)f='index.html';if(!/\.html?$/.test(f))f+='.html';return f}
+function url(l){return root()+(l==='ko'?'':l+'/')+file()+location.search.replace(/[?&]lang=[^&]*/,'').replace(/^&/,'?')+location.hash}
+function exists(u,cb){if(location.protocol==='file:'){cb(true);return}try{fetch(u,{method:'HEAD'}).then(function(r){cb(!(r.status===404||r.status===410))},function(){cb(true)})}catch(e){cb(true)}}
+function save(l){try{localStorage.setItem(KEY,l)}catch(e){}}
+function drop(){try{localStorage.removeItem(KEY)}catch(e){}}
+window.itSetLang=function(l,manual){if(l===cur)return;
+ if(AVAILABLE.indexOf(l)<0){if(manual){var n=document.getElementById('lang-note');if(n){n.hidden=false;n.textContent='이 언어판은 아직 준비 중입니다 ('+l+'). 한국어판을 보여 드립니다.'}}else{drop()}return}
+ var u=url(l);exists(u,function(ok){if(ok){if(manual)save(l);location.href=u}else{drop();if(manual){var n=document.getElementById('lang-note');if(n){n.hidden=false;n.textContent='언어판 파일을 찾지 못했습니다: '+u}}}})};
+var q=(location.search.match(/[?&]lang=([a-z]{2})/)||[])[1];
+if(q&&LANGS.indexOf(q)>=0){save(q);if(q!==cur)itSetLang(q,true);return}
+var s=null;try{s=localStorage.getItem(KEY)}catch(e){}
+if(s&&s!==cur){itSetLang(s,false);return}
+if(!s){var b=(navigator.language||'ko').slice(0,2);if(b!==cur&&AVAILABLE.indexOf(b)>=0)itSetLang(b,false)}
+})();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>3편 · 그 숫자를 성능이라 부르면 생기는 일 | 인슈어테크 #4 실전</title>
+<meta name="description" content="AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전 3편(과제 문항 3). 그룹 오차를 그대로 성능이라 부를 때의 문제 다섯과 1:1 개선: 부트스트랩 구간, 편향과 3:1 비용, 흡연×비만 상호작용, 스미어링, 중첩 CV.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Silkscreen&display=swap">
+<style>
+.say .av:has(img){background:#fff}
+.say .av img{display:block}
+img.scene{display:block;width:100%;max-width:720px;height:auto;aspect-ratio:9/5;object-fit:cover;border-radius:var(--r)}
+img.keyvis{display:block;width:100%;height:auto;aspect-ratio:1100/320;object-fit:cover;border-radius:var(--r)}
+img.pic{display:block;width:100%;height:auto;aspect-ratio:480/440;object-fit:cover;border-radius:6px}
+.crew .cf{background:#fff}
+.crew .cf img{width:100%;height:100%;object-fit:contain}
+.crew .moods button img{width:36px;height:36px;border-radius:7px;display:block}
+/* 레이아웃: 보상 센터 연구 노트 — 상단 바 · 히어로(그림 자리) · 육각 번호 섹션 · 카드형 실습 */
+:root{
+  --bg:#f6f5fb; --surface:#ffffff; --sunken:#eeecf7; --ink:#1d1a2e; --muted:#5d5873; --line:#dcd8ea;
+  --accent:#5b47c9; --accent-ink:#ffffff; --accent-soft:#ece8ff;
+  --core:#6a4fd8; --data:#c2417a; --seq:#13857f;
+  --c-no:#2f86c9; --c-claim:#d9730d; --c-3:#7b61d9; --c-4:#1f9e78;
+  --risk:#b4471b; --risk-bg:#fdeee6; --safe:#1f7a5c; --safe-bg:#e5f4ee; --warn:#9a620e; --warn-bg:#fbf1df;
+  --grid:#e6e3f0;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --f-pixel:"Silkscreen","IBM Plex Mono",monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12111a; --surface:#1b1a26; --sunken:#0e0d15; --ink:#ece9f7; --muted:#a29dba; --line:#2e2b40;
+  --accent:#a998ff; --accent-ink:#14121f; --accent-soft:#2a2547;
+  --core:#a48cf0; --data:#f07aaa; --seq:#4cc3b9;
+  --c-no:#3f8fd2; --c-claim:#d8742a; --c-3:#8a74e0; --c-4:#26a17c;
+  --risk:#f08a5d; --risk-bg:#3a1f16; --safe:#5fcf9f; --safe-bg:#14302a; --warn:#e3aa52; --warn-bg:#33270f;
+  --grid:#2a2738; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --grid:#2a2738; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.7;word-break:keep-all;overflow-wrap:break-word}
+a{color:var(--accent)}
+h1,h2,h3{line-height:1.3;text-wrap:balance;margin:0}
+p{margin:0}
+code,pre,.mono{font-family:var(--f-mono)}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:20px}
+nav.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding-block:8px}
+nav.top .brand{font-weight:700;text-decoration:none;color:var(--ink);white-space:nowrap}
+nav.top .brand b{font-family:var(--f-pixel);font-weight:400;color:var(--accent);margin-left:4px}
+nav.top .links{display:flex;gap:2px 12px;flex-wrap:wrap;font-size:.86rem;flex:1;min-width:0}
+nav.top .links a{color:var(--muted);text-decoration:none}
+nav.top .links a:hover{color:var(--ink)}
+nav.top select{width:auto;font:inherit;font-size:.82rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+header.hero{padding-block:28px 20px}
+.hero-grid{display:grid;gap:18px}
+.series{display:flex;flex-wrap:wrap;gap:6px}
+.series a{font-size:.78rem;text-decoration:none;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 10px;background:var(--surface)}
+.series a.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.kicker{font-family:var(--f-pixel);font-size:.82rem;color:var(--accent);letter-spacing:.04em}
+h1{font-size:clamp(1.7rem,4.2vw,2.5rem);font-weight:700;letter-spacing:-.015em}
+.lead{font-size:1.06rem;color:var(--muted);max-width:68ch}
+.byline{font-size:.84rem;color:var(--muted)}
+.guide{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted)}
+.guide span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+.chat{display:grid;gap:10px;max-width:760px}
+.say{display:flex;gap:12px;align-items:flex-start}
+.say .av{flex:0 0 52px;height:52px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:1.05rem;color:var(--accent-ink);background:var(--avc,var(--accent));position:relative;overflow:hidden}
+.say .av img{width:100%;height:100%;object-fit:cover;object-position:50% 18%}
+.say .av small{position:absolute;bottom:2px;left:0;right:0;font-size:.55rem;font-weight:500;text-align:center;opacity:.85}
+.say .sbub{background:var(--surface);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:8px 14px;min-width:0}
+.say .sbub b{font-size:.8rem;color:var(--muted);display:block}
+.say .sbub ul{margin:4px 0 0;padding-left:1.2em}
+.npc{display:inline-block;margin-left:6px;font-family:var(--f-pixel);font-size:.62rem;font-weight:400;letter-spacing:.06em;color:#3a2a00;background:#f2c94c;border:1px solid #b8901a;border-radius:3px;padding:0 5px;vertical-align:1px}
+.bomi{--avc:#d9730d}.actuary{--avc:#5b47c9}.fly{--avc:#13857f}.robo{--avc:#2f86c9}
+section.part{padding-block:34px 10px;border-top:1px solid var(--line);margin-top:26px}
+.part-head{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:center;margin-bottom:16px}
+.hex{width:44px;height:50px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:var(--kc,var(--accent));color:#fff;display:grid;place-items:center;font-family:var(--f-pixel);font-size:1.05rem;grid-row:span 2}
+.part-head h2{font-size:1.4rem}
+.part-head h2 span.en{font-family:var(--f-pixel);font-weight:400;font-size:.72rem;color:var(--muted);margin-left:8px;letter-spacing:.03em}
+.part-head p{color:var(--muted);font-size:.94rem}
+.body{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.body>p,.body>ul,.body>ol{max-width:72ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:grid;gap:12px;min-width:0}
+.card h3{font-size:1.02rem}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:.76rem;color:var(--muted);font-weight:600;letter-spacing:.02em;white-space:nowrap}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+tr.hl td{background:var(--accent-soft);font-weight:600}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit}
+.btn{text-decoration:none;display:inline-block;font-size:.9rem;font-weight:600;border-radius:8px;padding:7px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn:hover{border-color:var(--accent)}
+.btn[aria-pressed="true"],.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.small{font-size:.8rem;padding:3px 10px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dial{display:grid;gap:4px;min-width:0;align-content:start}
+.dial label{font-size:.86rem;font-weight:500;display:flex;justify-content:space-between;gap:8px}
+.dial label output{font-family:var(--f-mono);color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select,input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
+.canvas-box{position:relative;min-width:0}
+.canvas-box canvas{width:100%;display:block;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.cap{font-size:.86rem;color:var(--muted)}
+.cap b{color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;background:var(--c)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.76rem;padding:4px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-120%);z-index:5}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:8px}
+.stat>div{background:var(--sunken);border-radius:6px;padding:8px 12px;display:grid}
+.stat .l{font-size:.74rem;color:var(--muted)}
+.stat .v{font-size:1.25rem;font-weight:600;font-variant-numeric:tabular-nums}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:6.5em 1fr 4.2em;gap:8px;align-items:center;font-size:.84rem}
+.bar .track{position:relative;height:16px;background:var(--sunken);border-radius:4px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:var(--c,var(--accent));transition:width .25s}
+.bar .base{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.bar .v{font-family:var(--f-mono);text-align:right}
+@media (prefers-reduced-motion:reduce){.bar .fill{transition:none}}
+.cm{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;max-width:440px;font-variant-numeric:tabular-nums}
+.cm .h{font-size:.76rem;color:var(--muted);font-weight:600;display:flex;align-items:end;padding:2px 4px}
+.cm .rh{align-items:center}
+.cm .c{border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:grid;background:var(--surface)}
+.cm .c b{font-size:1.15rem}
+.cm .c span{font-size:.74rem;color:var(--muted)}
+.cm .c.ok{background:var(--safe-bg);border-color:transparent}
+.cm .c.bad{background:var(--risk-bg);border:2px solid var(--risk)}
+.cm .c.bad span{color:var(--risk);font-weight:600}
+.pill{display:inline-block;font-size:.74rem;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.pill.risk{background:var(--risk-bg);color:var(--risk)}.pill.safe{background:var(--safe-bg);color:var(--safe)}.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.pass{background:var(--safe-bg);color:var(--safe)}.pill.fail{background:var(--risk-bg);color:var(--risk)}
+.note{border-left:3px solid var(--warn);background:var(--warn-bg);padding:8px 14px;border-radius:0 6px 6px 0;font-size:.9rem}
+.note.info{border-color:var(--accent);background:var(--accent-soft)}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;display:grid;gap:10px}
+.q .qt{font-weight:600}
+.q .opts{display:grid;gap:6px}
+.q .opts button{text-align:left;font-size:.92rem;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer}
+.q .opts button.right{border-color:var(--safe);background:var(--safe-bg)}
+.q .opts button.wrong{border-color:var(--risk);background:var(--risk-bg)}
+.q .fb{font-size:.9rem}
+.codebox{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.codebox .tabs{display:flex;flex-wrap:wrap;gap:2px;border-bottom:1px solid var(--line);background:var(--sunken);padding:6px 6px 0}
+.codebox .tabs button{border:0;background:none;padding:6px 12px;border-radius:6px 6px 0 0;cursor:pointer;color:var(--muted);font-size:.84rem;font-family:var(--f-mono)}
+.codebox .tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);font-weight:500}
+.codebox .tools{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);align-items:center}
+.codebox .tools span{font-size:.78rem;color:var(--muted);flex:1;min-width:12em}
+.codebox pre{margin:0;padding:14px 16px;overflow:auto;max-height:440px;font-size:.8rem;line-height:1.55;white-space:pre}
+details.run{border:1px solid var(--line);border-radius:var(--r);background:var(--sunken)}
+details.run summary{cursor:pointer;padding:8px 14px;font-size:.88rem;font-weight:500}
+details.run pre{margin:0;padding:10px 16px 14px;overflow:auto;font-size:.78rem;line-height:1.5}
+.gloss{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
+.gloss div{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px}
+.gloss dt{font-weight:600}.gloss dd{margin:2px 0 0;font-size:.88rem;color:var(--muted)}
+.gloss dd i{font-style:normal;color:var(--ink)}
+.prompt pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--sunken);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;font-size:.8rem;max-height:360px;overflow:auto;margin:0}
+.teach-link{display:inline-block;font-weight:600;text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:8px 14px}
+section.outro{margin-top:40px;padding-block:30px;border-top:1px solid var(--line)}
+.outro .scene{width:100%;max-width:720px;aspect-ratio:720/400;border-radius:var(--r)}
+.placeholder{display:grid;place-items:center;text-align:center;background:repeating-linear-gradient(135deg,var(--sunken) 0 12px,var(--surface) 12px 24px);border:1px dashed var(--line);color:var(--muted);font-size:.82rem;padding:10px}
+.nav-eps{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
+footer{border-top:1px solid var(--line);margin-top:30px;padding-block:22px 40px;font-size:.82rem;color:var(--muted)}
+footer .wrap{display:grid;gap:8px}
+.robo-w{align-items:center}
+.robo-w .av{flex-basis:64px;height:64px;font-size:1.4rem}
+.robo-w[data-st="wrong"] .av{--avc:var(--risk)}
+.robo-w[data-st="success"] .av{--avc:var(--safe)}
+.robo-w[data-st="confused"] .av{--avc:var(--warn)}
+.player{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.player input[type=range]{flex:1;min-width:140px}
+.stamp{justify-self:start;border:3px double currentColor;border-radius:4px;padding:6px 16px;font-weight:700;font-size:1.35rem;letter-spacing:.04em;transform:rotate(-2deg)}
+.stamp.risk{color:var(--risk)}.stamp.safe{color:var(--safe)}.stamp.reject{color:var(--warn)}
+@media (max-width:560px){body{font-size:15px}.part-head h2{font-size:1.2rem}.say .av{flex-basis:44px;height:44px}}
+.tagx{display:inline-block;font-size:.72rem;font-weight:600;background:var(--sunken);border-radius:4px;padding:0 6px;margin-right:4px;color:var(--muted)}
+.crewgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:14px}
+.crew{align-content:start}
+.crew .faces{position:relative;aspect-ratio:4/3;width:100%;overflow:hidden;border-radius:var(--r)}
+.crew .cf{position:absolute;inset:0;display:none;border-radius:var(--r);flex-direction:column;gap:4px}
+.crew .cf.on{display:grid;align-content:center}
+.crew .moods{display:flex;flex-wrap:wrap;gap:6px}
+.crew .moods button{width:44px;height:44px;border-radius:10px;border:2px solid var(--line);background:var(--sunken);cursor:pointer;display:grid;place-items:center;padding:0;line-height:1.1;color:var(--avc)}
+.crew .moods button small{font-size:.58rem;color:var(--muted)}
+.crew .moods button[aria-pressed="true"]{border-color:var(--avc)}
+.cline{font-weight:500}
+.keyvis{width:100%;aspect-ratio:1100/320;border-radius:var(--r)}
+.stops{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:14px}
+.stop{border-top:4px solid var(--kc)}
+.stop .pic{aspect-ratio:480/440;border-radius:6px}
+.stop .no{font-family:var(--f-pixel);color:var(--kc)}
+.bigq{font-size:1.15rem;font-weight:600;border-left:4px solid var(--accent);padding:6px 14px;background:var(--accent-soft);border-radius:0 8px 8px 0;max-width:72ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:grid;gap:12px;min-width:0;align-content:start}
+.task{border:1px solid var(--line);border-left:4px solid var(--data);background:var(--surface);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;display:grid;gap:8px}
+.task .tt{font-family:var(--f-pixel);font-size:.8rem;color:var(--data)}
+.task ul{margin:0;padding-left:1.2em}
+.answer{border:2px dashed var(--accent);border-radius:var(--r);padding:14px 18px;display:grid;gap:10px;background:var(--surface)}
+.answer .tt{font-weight:700;color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips span{font-size:.76rem;border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:var(--sunken)}
+.chips span.ban{border-color:var(--risk);color:var(--risk);background:var(--risk-bg)}
+
+:root{--c-under:var(--c-claim);--c-over:var(--c-no)}
+.say .sbub p b,.say .sbub li b,.say .sbub p strong{display:inline;font-size:inherit;color:inherit}
+.review{text-decoration:none;color:inherit;border-left:4px solid var(--seq)}
+.review:hover{border-color:var(--accent)}
+.scene.placeholder{width:100%;max-width:720px;aspect-ratio:9/5;border-radius:var(--r)}
+.keyvis.placeholder{width:100%;aspect-ratio:1100/320;border-radius:var(--r)}
+.pic.placeholder{width:100%;aspect-ratio:720/660;border-radius:6px}
+.otherpart{font-size:.78rem;text-decoration:none;border:1px dashed var(--seq);color:var(--seq);border-radius:999px;padding:2px 10px;background:var(--surface)}
+.box{border:1px solid var(--seq);background:var(--surface);border-radius:var(--r);padding:14px 18px;display:grid;gap:8px}
+.box .tt{font-family:var(--f-pixel);font-size:.78rem;color:var(--seq)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.form label{display:grid;gap:3px;font-size:.84rem;font-weight:500}
+.path{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.86rem}
+.path span{border:1px solid var(--line);border-radius:6px;padding:2px 8px;background:var(--sunken)}
+.path span.leaf{background:var(--accent-soft);border-color:var(--accent);font-weight:600}
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:18px;text-align:center;color:var(--muted);font-size:.9rem}
+.drop.on{border-color:var(--accent);background:var(--accent-soft)}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums}
+.mono{overflow-wrap:anywhere}
+@media (max-width:640px){nav.top .links{order:3;flex-basis:100%}}
+td.r.under{color:var(--c-under);font-weight:600}td.r.over{color:var(--c-over)}
+
+</style>
+</head>
+<body>
+<nav class="top"><div class="wrap"><a class="brand" href="index.html">인슈어테크 #4 실전<b>· 3</b></a><div class="links"><a href="#task">과제</a><a href="#problems">문제점 표</a><a href="#fix1">1 구간</a><a href="#fix2">2 방향·비용</a><a href="#fix3">3 상호작용</a><a href="#fix4">4 스미어링</a><a href="#fix5">5 중첩 CV</a><a href="#after">전/후</a><a href="#answer">답안 틀</a><a href="#check">확인 문제</a><a href="#practice">코드</a><a href="#prompt">프롬프트</a><a href="#glossary">용어</a><a href="answers.html#a3">교육자용 정답</a></div><a class="otherpart" href="https://adminmrobo.github.io/ai-biz-insurtech-03/">1부 개념편 →</a><select id="lang-sel" aria-label="언어 선택" onchange="itSetLang(this.value,true)"><option value="ko" selected>한국어</option><option value="en">English</option><option value="zh">中文</option><option value="ja">日本語</option><option value="uz">O'zbekcha</option><option value="ru">Русский</option></select></div></nav><header class="hero"><div class="wrap hero-grid"><div class="series" aria-label="시리즈 편 목록"><a href="1_kfold_cv.html" class="">1 5-Fold 검증</a><a href="2_group_errors.html" class="">2 흡연자만 오차</a><a href="3_problems_fixes.html" class="on" aria-current="page">3 문제점·개선</a><a href="4_html_deploy.html" class="">4 HTML 배포</a><a href="5_similar_cases.html" class="">5 유사 사례</a><a class="otherpart" href="https://adminmrobo.github.io/ai-biz-insurtech-03/">↔ 1부 개념편 (인슈어테크 #3)</a></div><p class="kicker">EPISODE 3 · 과제 문항 3 · 방법형 · Problems and fixes</p>
+<h1>그 숫자를 성능이라 부르면 생기는 일</h1><p class="lead">과제 문항 3은 문항 2의 결과를 그대로 성능이라 부를 때의 문제점과 1:1 개선을 묻습니다. 작은 그룹의 흔들림, MAE 가 숨기는 방향, 선형 모델이 놓친 흡연 × 비만, 로그 되돌리기 편향, 고를 때 본 데이터로 채점하는 낙관 — 다섯 가지를 모두 실제로 고쳐 보고 숫자로 확인합니다.</p><div class="chat"><div class="say bomi"><div class="av" data-face="worried" aria-hidden="true"><img src="assets/av_bomi_worried.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>조교</b><p>흡연자만 MAE 를 성능이라고 내면 되는 거 아니에요? 2편에서 다 쟀잖아요.</p></div></div><div class="say actuary"><div class="av" data-face="explain" aria-hidden="true"><img src="assets/av_actuary_explain.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>박사<span class="npc" title="NPC">NPC</span></b><p>(손바닥을 든다) …숫자는 맞는데, 그 숫자만 내면 생기는 문제가 다섯 가지 있습니다. 하나씩 고쳐 봅시다. 그 전에, 기준선부터 봅시다.</p></div></div><div class="say robo"><div class="av" data-face="confused" aria-hidden="true"><img src="assets/av_robo_confused.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>머니로보</b><p>삐빅. 모두에게 평균만 말했더니 비흡연자 1,063명에게는 MAE 가 $6,597 로 꽤 괜찮아요. 승진인가요?</p></div></div></div><p class="byline">글 · 안상선 ((주)M-Robo 대표) · AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전</p><div class="guide"><span style="--c:var(--c-claim)">흡연자</span><span style="--c:var(--c-no)">비흡연자</span><span style="--c:var(--c-under)">과소 추정</span><span style="--c:var(--ink)">대각선 = 정확히 맞힘</span></div></div></header><main><section class="part" id="task"><div class="wrap"><div class="part-head" style="--kc:var(--data)"><div class="hex">0</div><h2>과제 문항 3<span class="en">Assignment 3</span></h2><p>무엇을 내야 하는지 먼저 확인합니다.</p></div><div class="body"><div class="task"><span class="tt">ASSIGNMENT · 문항 3</span><h3>문항 2의 문제점 기술 및 개선 방안 제시</h3><div class="chips"><span class="">문제점 3가지 이상</span><span class="">1:1 대응</span><span class="">1개 이상 구현</span></div><ul><li>문항 2의 결과(또는 문항 1의 전체 평균 지표)를 그대로 “모델 성능”으로 보고할 때의 문제점을 최소 3가지 기술</li><li>각 문제점에 1:1로 대응하는 개선 방안을 제시 (예: 흡연×BMI 상호작용항, 그룹별 모델, 타깃 변환 방식, 평가 지표 변경 등에서 스스로 선택)</li><li>각 개선 방안은 (a) 무엇을 바꾸는지, (b) 왜 그것이 문제를 해결하는지, (c) 개선 후 어떤 지표로 확인할지를 포함</li><li>개선 방안 중 1개 이상은 실제로 구현해 문항 2의 표와 전/후 비교</li></ul></div><p>이 편은 문제점 <b>다섯 개</b>와 1:1 개선 다섯 개를 제시하고, 그중 다섯 개 모두를 실제로 실행해 숫자로 확인합니다. 모든 숫자는 1편과 같은 10분위 층화 5-Fold 의 검증 예측입니다.</p><a class="card review" href="https://adminmrobo.github.io/ai-biz-insurtech-03/4_margin_lab.html"><span class="tagx">1부 4편 복습</span><h3>여유분과 비용 실험실</h3><p class="cap">적게 잡은 1달러와 많이 잡은 1달러의 비용이 다를 때(3 : 1) — 오늘 문제 2의 개선에 그대로 씁니다.</p></a></div></div></section><section class="part" id="problems"><div class="wrap"><div class="part-head" style="--kc:var(--core)"><div class="hex">1</div><h2>문제점 다섯과 1:1 개선<span class="en">Five problems, five fixes</span></h2><p>표 한 장으로 먼저 보고, 아래에서 하나씩 숫자로 확인합니다.</p></div><div class="body"><div class="tblwrap"><table><thead><tr><th>#</th><th>문제점 (문항 2 숫자를 그대로 성능이라 부르면)</th><th>(a) 무엇을 바꾸나</th><th>(b) 왜 해결되나</th><th>(c) 확인 지표</th></tr></thead><tbody><tr><td>1</td><td>흡연자 274명 · 고액 134명은 작은 그룹이라 숫자 하나가 우연에 크게 흔들린다</td><td>부트스트랩 95% 구간 + fold 범위를 함께 보고</td><td>숫자 대신 ‘이 범위 안’이라고 말해 우연의 크기를 드러낸다</td><td>구간 폭 · fold 최소~최대</td></tr><tr><td>2</td><td>MAE 는 부호를 지워 ‘적게 잡는지 많이 잡는지’를 숨긴다</td><td>평균 잔차(편향) · 과소 추정 비율 · 과소 3 : 과대 1 비용을 함께 보고</td><td>보험사가 실제로 아픈 쪽(적게 잡기)을 따로 센다</td><td>편향 · 과소 비율 · 3:1 비용</td></tr><tr><td>3</td><td>선형 회귀는 ‘흡연자이면서 비만’일 때 금액이 따로 뛰는 것을 못 잡아 흡연자 오차가 크다</td><td>흡연 × 비만(BMI 30 이상) 상호작용 특성 3개 추가</td><td>직선 모델에 ‘흡연+비만이면 따로 더한다’는 칸을 만들어 준다</td><td>흡연자 MAE · 고액 MAE · R²</td></tr><tr><td>4</td><td>log(charges) 모델을 exp 로 되돌리면 평균이 아니라 중앙값 쪽이라 합계가 모자란다</td><td>스미어링 보정: exp(예측) × 학습 잔차의 exp 평균 (Duan, 1983)</td><td>로그 척도의 잔차 퍼짐만큼 되돌린 값을 키워 평균을 맞춘다</td><td>평균 예측 − 실제 평균 · 과소 비율 (MAE 는 오히려 나빠질 수 있음)</td></tr><tr><td>5</td><td>하이퍼파라미터를 같은 5-Fold 로 고르고 같은 5-Fold 로 채점하면 점수가 낙관적이다</td><td>중첩 교차검증: 안쪽 5-Fold 로 고르고 바깥 fold 로 채점</td><td>고를 때 본 데이터로 채점하지 않는다</td><td>중첩 MAE 평균 ± 표준편차 vs 같은 fold MAE</td></tr></tbody></table></div><p class="note">고액 상위 10% 그룹은 실제 금액(정답)으로 고른 ‘사후’ 그룹이라 가입 시점에는 모릅니다. 보고서에서는 사후 분석이라고 밝히고, 흡연 여부처럼 가입 시점에 아는 그룹과 구분합니다.</p></div></div></section><section class="part" id="fix1"><div class="wrap"><div class="part-head" style="--kc:var(--data)"><div class="hex">2</div><h2>문제 1 · 작은 그룹은 범위로<span class="en">Bootstrap interval</span></h2><p>흡연자 MAE 를 2,000번 다시 뽑아 잽니다.</p></div><div class="body"><p><b>부트스트랩</b>은 그룹 안의 사람을 ‘중복을 허락해’ 같은 수만큼 다시 뽑아 MAE 를 재는 일을 2,000번 반복합니다. 2,000개 MAE 의 가운데 95%가 구간입니다. 새 데이터를 만드는 것이 아니라 <b>있는 검증 예측을 다시 세는</b> 것이라 증강이 아닙니다.</p><div class="tblwrap"><table><thead><tr><th>모델</th><th class="r">흡연자 MAE</th><th class="r">95% 구간</th><th class="r">fold 범위</th><th class="r">고액 10% MAE</th><th class="r">95% 구간</th></tr></thead><tbody><tr><td>선형 회귀</td><td class="r">$8,660</td><td class="r">[$8,319, $9,036]</td><td class="r">$8,471 ~ $8,938</td><td class="r">$8,412</td><td class="r">[$7,720, $9,207]</td></tr><tr><td>선형 + 흡연×비만 상호작용</td><td class="r">$1,737</td><td class="r">[$1,389, $2,149]</td><td class="r">$1,489 ~ $2,199</td><td class="r">$2,731</td><td class="r">[$1,972, $3,650]</td></tr><tr><td>그래디언트 부스팅</td><td class="r">$2,107</td><td class="r">[$1,721, $2,544]</td><td class="r">$1,824 ~ $2,373</td><td class="r">$2,877</td><td class="r">[$2,051, $3,791]</td></tr></tbody></table></div><div class="say actuary"><div class="av" data-face="note" aria-hidden="true"><img src="assets/av_actuary_note.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>박사<span class="npc" title="NPC">NPC</span></b><p>(손바닥을 든다) …상호작용 선형($1,737)과 그래디언트 부스팅($2,107)의 흡연자 MAE 구간은 [$1,389, $2,149] 과 [$1,721, $2,544] 로 겹칩니다. ‘상호작용 선형이 더 낫다’고 단정하면 안 됩니다. 반면 원래 선형은 구간이 전혀 겹치지 않을 만큼 큽니다.</p></div></div></div></div></section><section class="part" id="fix2"><div class="wrap"><div class="part-head" style="--kc:var(--data)"><div class="hex">3</div><h2>문제 2 · 방향을 살려 보고<span class="en">Bias and asymmetric cost</span></h2><p>MAE 가 비슷해도 적게 잡는 모델은 더 비쌉니다.</p></div><div class="body"><p>비용 = 3 × (적게 잡은 금액) + 1 × (많이 잡은 금액), 한 사람 평균. 1부 4편의 가정(과소 1달러 : 과대 1달러 = 3 : 1)을 그대로 씁니다. 이 비율은 <b>설명용 가정</b>입니다.</p><div class="tblwrap"><table><thead><tr><th>모델</th><th class="r">MAE</th><th class="r">전체 편향</th><th class="r">고액 10% 편향</th><th class="r">과소 추정 비율</th><th class="r">3 : 1 비용</th></tr></thead><tbody><tr class="hl"><td>기준선 (학습 fold 평균)</td><td class="r">$9,092</td><td class="r">$0</td><td class="r">−$29,099</td><td class="r">31.4%</td><td class="r">$18,185</td></tr><tr><td>선형 회귀</td><td class="r">$4,206</td><td class="r">$5</td><td class="r">−$8,412</td><td class="r">37.1%</td><td class="r">$8,407</td></tr><tr><td>선형 + 흡연×비만 상호작용</td><td class="r">$2,358</td><td class="r">$2</td><td class="r">−$1,111</td><td class="r">12.7%</td><td class="r">$4,714</td></tr><tr><td>그래디언트 부스팅</td><td class="r">$2,448</td><td class="r">−$13</td><td class="r">−$1,604</td><td class="r">19.3%</td><td class="r">$4,909</td></tr><tr><td>그래디언트 부스팅 · log → exp</td><td class="r">$2,135</td><td class="r">−$659</td><td class="r">−$2,278</td><td class="r">26.2%</td><td class="r">$4,929</td></tr><tr><td>그래디언트 부스팅 · log × 스미어링</td><td class="r">$2,692</td><td class="r">$315</td><td class="r">$824</td><td class="r">12.0%</td><td class="r">$5,069</td></tr></tbody></table></div><p>그래디언트 부스팅의 로그 타깃은 MAE 가 $2,135 로 원래 타깃($2,448)보다 작지만, 적게 잡는 사람이 26.2%로 많아 3 : 1 비용은 $4,929 로 오히려 큽니다. MAE 하나로 고르면 이 차이를 놓칩니다.</p></div></div></section><section class="part" id="fix3"><div class="wrap"><div class="part-head" style="--kc:var(--seq)"><div class="hex">4</div><h2>문제 3 · 흡연 × 비만 상호작용 넣기<span class="en">Interaction terms</span></h2><p>버튼으로 개선 전과 후의 검증 예측을 비교하세요.</p></div><div class="body"><p>추가한 특성 세 개: <span class="mono">bmi30</span> = BMI 30 이상이면 1, <span class="mono">smoker_bmi30</span> = 흡연자이면서 BMI 30 이상이면 1, <span class="mono">smoker_bmi</span> = 흡연자의 BMI(비흡연자는 0). BMI 30 은 WHO 성인 비만 기준입니다. 행은 하나도 바뀌지 않고 <b>열</b>만 늘었습니다.</p><div class="btns" role="group" aria-label="모델 고르기"><button class="btn" data-fx="Linear" aria-pressed="true">개선 전: 선형 회귀</button><button class="btn" data-fx="Linear + interaction" aria-pressed="false">개선 후: 선형 + 상호작용</button><button class="btn" data-fx="GBM" aria-pressed="false">비교: 그래디언트 부스팅</button></div><div class="cols"><div class="card"><h3>실제 × 검증 예측 (1,337명)</h3><div class="canvas-box"><canvas id="fx-cv" aria-label="실제 의료비와 검증 예측 점 그림"></canvas></div><p class="cap">주황 = 흡연자, 파랑 = 비흡연자. 대각선에 붙을수록 잘 맞힌 것.</p></div><div class="card"><h3>점수</h3><div class="tblwrap"><table id="fx-tbl"></table></div><div class="say robo robo-w" id="robo-23" data-st="wrong" aria-live="polite"><div class="av" data-rs="idle" hidden aria-hidden="true"><img src="assets/av_robo_idle.webp" alt="" width="160" height="160" loading="lazy"></div><div class="av" data-rs="thinking" hidden aria-hidden="true"><img src="assets/av_robo_thinking.webp" alt="" width="160" height="160" loading="lazy"></div><div class="av" data-rs="wrong" aria-hidden="true"><img src="assets/av_robo_wrong.webp" alt="" width="160" height="160" loading="lazy"></div><div class="av" data-rs="confused" hidden aria-hidden="true"><img src="assets/av_robo_confused.webp" alt="" width="160" height="160" loading="lazy"></div><div class="av" data-rs="success" hidden aria-hidden="true"><img src="assets/av_robo_success.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>머니로보</b><p data-rs="idle" hidden>버튼을 눌러 주세요.</p><p data-rs="thinking" hidden>삐빅…</p><p data-rs="wrong">흡연자 고액을 모두 적게 잡아요!</p><p data-rs="confused" hidden>모두에게 평균만…</p><p data-rs="success" hidden>삐빅! 흡연자 오차가 크게 줄었어요.</p></div></div></div></div><p class="cap" id="fx-cap" aria-live="polite"></p></div></div></section><section class="part" id="fix4"><div class="wrap"><div class="part-head" style="--kc:var(--core)"><div class="hex">5</div><h2>문제 4 · 로그 되돌리기 편향과 스미어링<span class="en">Retransformation bias</span></h2><p>exp(로그 예측)은 평균을 모자라게 맞힙니다.</p></div><div class="body"><p>log(charges) 를 맞히는 모델은 로그 척도에서 평균을 맞힙니다. 그런데 exp 는 볼록한 함수라서 exp(로그의 평균)은 원래 평균보다 작습니다(옌센 부등식). 그래서 되돌린 예측의 평균은 실제 평균($13,279)보다 낮습니다. <b>스미어링 보정</b>(Duan, 1983)은 학습 데이터의 로그 잔차 r 로 계수 <span class="mono">F = mean(exp(r))</span> 를 구해 exp(예측)에 곱합니다. F 는 학습 fold 로만 계산합니다.</p><div class="tblwrap"><table><thead><tr><th>모델</th><th class="r">평균 예측</th><th class="r">실제 평균 대비</th><th class="r">MAE</th><th class="r">과소 추정 비율</th><th class="r">3 : 1 비용</th></tr></thead><tbody><tr><td>선형 · log → exp</td><td class="r">$12,954</td><td class="r">-2.4%</td><td class="r">$4,281</td><td class="r">36.9%</td><td class="r">$8,887</td></tr><tr><td>선형 · log → exp × 스미어링</td><td class="r">$14,750</td><td class="r">+11.1%</td><td class="r">$5,179</td><td class="r">17.1%</td><td class="r">$8,888</td></tr><tr><td>그래디언트 부스팅 · log → exp</td><td class="r">$12,621</td><td class="r">-5.0%</td><td class="r">$2,135</td><td class="r">26.2%</td><td class="r">$4,929</td></tr><tr><td>그래디언트 부스팅 · log × 스미어링</td><td class="r">$13,595</td><td class="r">+2.4%</td><td class="r">$2,692</td><td class="r">12.0%</td><td class="r">$5,069</td></tr><tr><td>그래디언트 부스팅</td><td class="r">$13,266</td><td class="r">-0.1%</td><td class="r">$2,448</td><td class="r">19.3%</td><td class="r">$4,909</td></tr></tbody></table></div><div class="tblwrap"><table><thead><tr><th>스미어링 계수 F (학습 fold 별)</th><th class="r">fold 1</th><th class="r">fold 2</th><th class="r">fold 3</th><th class="r">fold 4</th><th class="r">fold 5</th></tr></thead><tbody><tr><td>선형 · log</td><td class="r">1.1322</td><td class="r">1.1333</td><td class="r">1.1460</td><td class="r">1.1335</td><td class="r">1.1461</td></tr><tr><td>그래디언트 부스팅 · log</td><td class="r">1.0713</td><td class="r">1.0740</td><td class="r">1.0858</td><td class="r">1.0672</td><td class="r">1.0867</td></tr></tbody></table></div><div class="cols"><div class="card"><h3>그래디언트 부스팅: 평균이 맞아짐</h3><p>평균 예측이 실제보다 -5.0% → +2.4% 로 가까워지고, 과소 추정 비율은 26.2% → 12.0% 로 줄었습니다.</p></div><div class="card"><h3>선형 회귀: 오히려 넘침</h3><p>선형 로그 모델은 -2.4% → +11.1% 로 <b>넘쳤습니다</b>. 스미어링은 ‘잔차의 퍼짐이 모두에게 같다’고 가정하는데, 상호작용이 없는 선형 모델은 흡연자의 잔차가 훨씬 크게 퍼져 이 가정이 깨집니다. 보정 전에 모델부터 고쳐야 합니다(문제 3).</p></div></div><p class="note">스미어링은 <b>평균(합계)</b>을 맞히는 보정입니다. MAE 는 중앙값에서 가장 작아지므로 보정 후 MAE 는 커집니다(그래디언트 부스팅 $2,135 → $2,692). 지급 준비금처럼 합계가 중요하면 보정하고, 개인 견적의 MAE 가 중요하면 하지 않습니다. 목적을 먼저 정합니다.</p></div></div></section><section class="part" id="fix5"><div class="wrap"><div class="part-head" style="--kc:var(--core)"><div class="hex">6</div><h2>문제 5 · 고를 때 본 데이터로 채점하지 않기<span class="en">Nested cross-validation</span></h2><p>그래디언트 부스팅 설정 18가지 중 하나를 고를 때.</p></div><div class="body"><div class="tblwrap"><table><thead><tr><th>방법</th><th>고른 설정 (나무 수, 깊이, 학습률)</th><th class="r">MAE</th></tr></thead><tbody><tr><td>같은 5-Fold 로 고르고 같은 5-Fold 로 채점</td><td>(200, 3, 0.05)</td><td class="r">$2,448 (낙관)</td></tr><tr><td>중첩: fold 마다 안쪽 5-Fold 로 고르고 바깥 fold 로 채점</td><td>fold 1: (200, 3, 0.05)<br>fold 2: (300, 2, 0.05)<br>fold 3: (100, 3, 0.05)<br>fold 4: (300, 2, 0.05)<br>fold 5: (100, 3, 0.05)</td><td class="r">$2,466 ± $141</td></tr></tbody></table></div><p>이 데이터에서는 차이가 $18 로 작습니다. 설정 후보가 18개뿐이고, 고른 설정들이 비슷한 점수를 내기 때문입니다. 그래도 바깥 fold 마다 고른 설정이 다릅니다. 후보가 많아질수록 차이는 커집니다. 차이가 작다는 것도 <b>중첩으로 재 봐야 알 수 있는 사실</b>입니다.</p></div></div></section><section class="part" id="after"><div class="wrap"><div class="part-head" style="--kc:var(--data)"><div class="hex">7</div><h2>문항 2 표 전/후<span class="en">Before and after</span></h2><p>과제가 요구하는 전/후 비교 (MAE / 평균 잔차).</p></div><div class="body"><div class="tblwrap"><table><thead><tr><th>모델</th><th class="r">흡연자만</th><th class="r">비흡연자만</th><th class="r">고액 상위 10%만</th></tr></thead><tbody><tr><td>선형 회귀</td><td class="r">$8,660 / $6</td><td class="r">$3,058 / $5</td><td class="r">$8,412 / −$8,412</td></tr><tr class="hl"><td>선형 + 흡연×비만 상호작용</td><td class="r">$1,737 / $7</td><td class="r">$2,518 / $0</td><td class="r">$2,731 / −$1,111</td></tr><tr><td>그래디언트 부스팅 · log → exp</td><td class="r">$2,526 / −$764</td><td class="r">$2,035 / −$631</td><td class="r">$3,628 / −$2,278</td></tr><tr><td>그래디언트 부스팅 · log × 스미어링</td><td class="r">$3,547 / $1,656</td><td class="r">$2,472 / −$30</td><td class="r">$4,724 / $824</td></tr><tr><td>그래디언트 부스팅</td><td class="r">$2,107 / −$128</td><td class="r">$2,536 / $17</td><td class="r">$2,877 / −$1,604</td></tr></tbody></table></div><p class="cap">같은 10분위 층화 5-Fold 검증 예측. 각 칸 = MAE / 평균 잔차(예측 − 실제, 음수 = 적게 잡음).</p><div class="say bomi"><div class="av" data-face="proud" aria-hidden="true"><img src="assets/av_bomi_proud.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>조교</b><p>상호작용 세 칸만 넣었는데 흡연자 MAE 가 $8,660 → $1,737! 고액 고객 편향도 −$8,412 → −$1,111 예요.</p></div></div></div></div></section><section class="part" id="answer"><div class="wrap"><div class="part-head" style="--kc:var(--seq)"><div class="hex">8</div><h2>보고서 답안 틀<span class="en">Answer template</span></h2><p>문제점과 개선을 1:1 로.</p></div><div class="body"><div class="answer"><span class="tt">✎ 보고서 답안 틀 (숫자는 본인 실행 결과로 바꾸세요)</span><div class="tblwrap"><table><thead><tr><th>#</th><th>문제점</th><th>(a) 무엇을 바꾸나</th><th>(b) 왜 해결되나</th><th>(c) 확인 지표</th><th>전 → 후 (본인 숫자)</th></tr></thead><tbody><tr><td>1</td><td>[ ]</td><td>[ ]</td><td>[ ]</td><td>[ ]</td><td>[ ] → [ ]</td></tr><tr><td>2</td><td>[ ]</td><td>[ ]</td><td>[ ]</td><td>[ ]</td><td>[ ] → [ ]</td></tr><tr><td>3</td><td>[ ]</td><td>[ ]</td><td>[ ]</td><td>[ ]</td><td>[ ] → [ ]</td></tr><tr><td>(4)</td><td>[ ]</td><td>[ ]</td><td>[ ]</td><td>[ ]</td><td>[ ] → [ ]</td></tr><tr><td>(5)</td><td>[ ]</td><td>[ ]</td><td>[ ]</td><td>[ ]</td><td>[ ] → [ ]</td></tr></tbody></table></div><p><b>서술 틀.</b> “문항 2의 흡연자 MAE [ ]는 [ ]명에서 잰 값이라 부트스트랩 95% 구간은 [ ] ~ [ ]이다. 선형 회귀에 흡연 × 비만 상호작용을 넣자 흡연자 MAE 가 [ ] → [ ], 고액 상위 10% 의 평균 잔차가 [ ] → [ ]로 바뀌었다. 로그 타깃 모델은 되돌린 예측의 평균이 실제보다 [ ]% 낮았고, 스미어링 보정 후 [ ]%가 되었다. 다만 MAE 는 [ ] → [ ]로 [ ]했으므로 [ ](목적)에 따라 선택한다.”</p></div></div></div></section><section class="part" id="check"><div class="wrap"><div class="part-head" style="--kc:var(--core)"><div class="hex">9</div><h2>확인 문제<span class="en">Check</span></h2><p>정답을 고르면 해설이 나옵니다.</p></div><div class="body"><div class="q" id="q3-1" data-ok="1" data-ex="그래디언트 부스팅 흡연자 MAE $2,107 의 95% 구간은 [$1,721, $2,544] 입니다."><p class="qt">Q1. 흡연자 MAE 를 부트스트랩으로 2,000번 다시 뽑아 잰 것은 데이터 증강일까요?</p><div class="opts"><button data-i="0" data-why="부트스트랩은 학습 데이터를 늘리지 않습니다. 이미 있는 검증 예측의 오차를 다시 세어 우연의 크기를 잴 뿐입니다.">증강이다. 같은 사람을 여러 번 뽑았으니까</button><button data-i="1">증강이 아니다. 모델은 다시 학습하지 않고, 있는 검증 오차를 다시 뽑아 MAE 의 흔들림을 잰다</button><button data-i="2" data-why="증강은 학습 데이터에 가짜 행을 넣는 것입니다. 부트스트랩 평가는 그 정의에 해당하지 않습니다.">증강이지만 평가에만 쓰니 괜찮다</button></div><p class="fb" aria-live="polite"></p></div><div class="q" id="q3-2" data-ok="1" data-ex="MAE: $2,135 vs $2,448, 3 : 1 비용: $4,929 vs $4,909."><p class="qt">Q2. 그래디언트 부스팅의 로그 타깃은 MAE 가 원래 타깃보다 작습니다. 그런데 3 : 1 비용은 더 큽니다. 왜일까요?</p><div class="opts"><button data-i="0" data-why="MAE 와 비대칭 비용은 다른 것을 잽니다.">계산 실수다</button><button data-i="1">로그 타깃은 적게 잡는 사람이 더 많아(26.2% vs 19.3%), 비싼 쪽 오차가 늘었기 때문</button><button data-i="2" data-why="R² 는 방향을 보지 않습니다. 비용은 편향 · 과소 비율과 함께 봅니다.">비용은 R² 로만 비교해야 한다</button></div><p class="fb" aria-live="polite"></p></div><div class="q" id="q3-3" data-ok="1" data-ex="1부 1편 평면의 맨 위 띠(흡연 + BMI 30 이상)입니다. R² 도 0.747 → 0.866 로 올라 그래디언트 부스팅(0.860)과 비슷해집니다."><p class="qt">Q3. 선형 회귀에 흡연 × 비만 상호작용을 넣으면 흡연자 MAE 가 $8,660 → $1,737 로 줄어듭니다. 그 이유로 가장 알맞은 것은?</p><div class="opts"><button data-i="0" data-why="행은 1,337개 그대로입니다. 열만 3개 늘었습니다.">데이터 행이 늘어서</button><button data-i="1">흡연자이면서 BMI 30 이상인 사람의 의료비가 따로 크게 뛰는데, 직선 모델이 그 ‘따로’를 표현할 칸이 생겨서</button><button data-i="2" data-why="아무도 빼지 않았습니다.">비만인 사람을 데이터에서 빼서</button></div><p class="fb" aria-live="polite"></p></div><div class="q" id="q3-4" data-ok="1" data-ex="MAE 는 중앙값에서, 제곱 오차와 합계는 평균에서 가장 작아집니다. exp(로그 예측)은 중앙값 쪽, 스미어링은 평균 쪽입니다."><p class="qt">Q4. 스미어링 보정을 하면 그래디언트 부스팅 로그 모델의 평균 예측은 실제에 가까워지는데 MAE 는 커집니다. 올바른 결론은?</p><div class="opts"><button data-i="0" data-why="보정은 평균을 맞히는 일을 제대로 했습니다(-5.0% → +2.4%).">보정이 틀렸다</button><button data-i="1">평균(합계)이 중요하면 보정하고, 한 사람 MAE 가 중요하면 하지 않는다. 목적에 따라 고른다</button><button data-i="2" data-why="지급 준비금처럼 합계가 중요한 일에서는 평균이 맞아야 합니다.">MAE 가 커졌으니 항상 쓰지 않는다</button></div><p class="fb" aria-live="polite"></p></div></div></div></section><section class="part" id="practice"><div class="wrap"><div class="part-head" style="--kc:var(--seq)"><div class="hex">10</div><h2>실무로 잇기<span class="en">From page to Colab</span></h2><p>이 페이지의 숫자를 만든 코드.</p></div><div class="body"><p>e3.py 는 상호작용 특성 세 개를 만들어 개선 전/후를 비교하고, fold 1 하나로 스미어링 계수를 직접 계산합니다. f3.py 는 다섯 가지 개선을 모두 실행하고(중첩 교차검증 때문에 약 2분), 4편이 쓸 상호작용 선형 모델을 <span class="mono">data/linear_interaction.json</span> 으로 저장합니다.</p><div class="codebox"><div class="tabs" role="tablist"><button role="tab" data-src="src-e3" data-info="초보용 · def·for·if·들여쓰기 없음 · 다이얼: BMI_CUT, COST_UNDER">e3.py</button><button role="tab" data-src="src-f3" data-info="정식 코드 · common.py 필요 · 약 2분(중첩 교차검증)">f3.py</button><button role="tab" data-src="src-common" data-info="공통 코드 · 1부와 2부가 같은 파일">common.py</button></div><div class="tools"><span></span><button class="btn small" data-act="copy">복사</button><button class="btn small" data-act="py">.py 받기</button><button class="btn small" data-act="nb">.ipynb 받기</button></div><pre><code></code></pre></div><script type="text/plain" id="src-e3" data-file="e3.py" data-formal="0">
+# AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전 · 초보용 코드 e3.py
+# 과제 문항 3 「그 숫자를 성능이라 부르면 생기는 일」 — 개선 두 가지를 직접 해 봅니다
+#  (1) 흡연 x 비만 상호작용 특성 추가  (2) 로그 타깃의 스미어링 보정
+# 함수 · 반복문 · if 문 · 들여쓰기 없이 위에서 아래로 읽습니다. 맨 위 [다이얼] 줄만 바꿔 다시 실행하세요.
+
+# ① 다이얼
+BMI_CUT = 30        # [다이얼] 비만으로 볼 BMI 기준 (WHO 성인 기준 30)
+COST_UNDER = 3      # [다이얼] 적게 잡은 1달러의 비용 (많이 잡은 1달러 = 1)
+
+# ② 데이터 읽기 · 같은 행 1건 빼기
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+df = pd.read_csv("https://raw.githubusercontent.com/fintech-data/Revolution/main/data/insurance.csv")
+df = df.drop_duplicates().reset_index(drop=True)
+X = pd.get_dummies(df.drop(columns="charges"), drop_first=True).astype(float)
+y = df["charges"]
+band = pd.qcut(y, 10, labels=False)
+folds = list(StratifiedKFold(n_splits=5, shuffle=True, random_state=42).split(X, band))
+smoker = X["smoker_yes"] == 1
+top = y >= y.quantile(0.9)
+
+# ③ 개선 전: 선형 회귀 (특성 8개)
+before = cross_val_predict(make_pipeline(StandardScaler(), LinearRegression()), X, y, cv=folds)
+
+# ④ 개선 후: 흡연 x 비만 상호작용 특성 3개 추가
+X2 = X.copy()
+X2["bmi30"] = (X2["bmi"] >= BMI_CUT).astype(float)
+X2["smoker_bmi30"] = X2["smoker_yes"] * X2["bmi30"]
+X2["smoker_bmi"] = X2["smoker_yes"] * X2["bmi"]
+after = cross_val_predict(make_pipeline(StandardScaler(), LinearRegression()), X2, y, cv=folds)
+
+# ⑤ 전/후 비교: MAE · 흡연자 MAE · 고액 MAE · 고액 편향 · 3:1 비용
+err_b = before - y
+err_a = after - y
+cost_b = (COST_UNDER * np.clip(-err_b, 0, None) + np.clip(err_b, 0, None)).mean()
+cost_a = (COST_UNDER * np.clip(-err_a, 0, None) + np.clip(err_a, 0, None)).mean()
+table = pd.DataFrame(index=["Linear", "Linear + interaction"])
+table["MAE"] = [err_b.abs().mean(), err_a.abs().mean()]
+table["MAE smoker"] = [err_b.abs()[smoker].mean(), err_a.abs()[smoker].mean()]
+table["MAE top10"] = [err_b.abs()[top].mean(), err_a.abs()[top].mean()]
+table["bias top10"] = [err_b[top].mean(), err_a[top].mean()]
+table["cost 3:1"] = [cost_b, cost_a]
+print(table.round(0))
+
+# ⑥ 스미어링: fold 1 하나로 보기 (5 fold 전체는 정식 코드 f3.py)
+tr, va = folds[0]
+log_model = make_pipeline(StandardScaler(), LinearRegression()).fit(X.iloc[tr], np.log(y.iloc[tr]))
+plain = np.exp(log_model.predict(X.iloc[va]))
+smear = np.mean(np.exp(np.log(y.iloc[tr]) - log_model.predict(X.iloc[tr])))
+print("smearing factor (fold 1):", round(smear, 4))
+print("mean actual  :", round(y.iloc[va].mean()))
+print("mean exp(pred)        :", round(plain.mean()), " <- 평균보다 낮게 (중앙값 쪽)")
+print("mean exp(pred) x smear:", round((plain * smear).mean()))
+print("MAE exp(pred)         :", round(np.abs(plain - y.iloc[va]).mean()))
+print("MAE exp(pred) x smear :", round(np.abs(plain * smear - y.iloc[va]).mean()))
+</script><script type="text/plain" id="src-f3" data-file="f3.py" data-formal="1">
+"""
+AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전 · 정식 코드 f3.py
+과제 문항 3 「그 숫자를 성능이라 부르면 생기는 일」: 문제점 5개와 1:1 개선
+무엇을, 어떤 순서로 (모두 1편과 같은 10분위 층화 5-Fold):
+ ① 작은 그룹 -> 부트스트랩 95% 구간(2,000번) + fold 범위
+ ② MAE 는 방향을 숨긴다 -> 편향(예측 − 실제) · 과소 추정 비율 · 비용(과소 1달러 : 과대 1달러 = 3 : 1)
+ ③ 선형 모델은 흡연 x 비만을 못 잡는다 -> common.add_interactions 로 특성 3개 추가, 전/후 비교
+ ④ 로그 타깃을 exp 로 되돌리면 평균이 아니라 중앙값 쪽 -> 스미어링 보정(Duan, 1983), 전/후 비교
+ ⑤ 같은 fold 로 하이퍼파라미터를 고르고 같은 fold 로 채점하면 낙관 -> 중첩 교차검증과 비교
+ ⑥ 4편이 쓸 수 있게 "상호작용 선형 모델"을 전체 1,337행으로 학습해 data/linear_interaction.json 으로 저장
+"""
+import itertools
+import json
+import numpy as np
+import pandas as pd
+from sklearn.base import clone
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import StratifiedKFold
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+import common as C
+
+COST_UNDER, COST_OVER = 3.0, 1.0
+
+
+def lin():
+    return make_pipeline(StandardScaler(), LinearRegression())
+
+
+def summ(y, p, smk, top):
+    e = p - y
+    under = np.clip(y - p, 0, None)
+    over = np.clip(p - y, 0, None)
+    return dict(MAE=np.mean(np.abs(e)), RMSE=np.sqrt(np.mean(e ** 2)), R2=1 - np.sum(e ** 2) / np.sum((y - y.mean()) ** 2),
+                MAE_smoker=np.mean(np.abs(e[smk])), MAE_top10=np.mean(np.abs(e[top])), bias=np.mean(e),
+                bias_top10=np.mean(e[top]), under_rate=np.mean(p < y),
+                cost_3to1=np.mean(COST_UNDER * under + COST_OVER * over), mean_pred=np.mean(p), mean_true=np.mean(y))
+
+
+def oof(model, X, y, fl, log=False, smear=False):
+    p = np.zeros(len(y))
+    for tr, va in fl:
+        if log:
+            m = clone(model).fit(X.iloc[tr], np.log(y.iloc[tr]))
+            z = m.predict(X.iloc[va])
+            f = np.mean(np.exp(np.log(y.iloc[tr]) - m.predict(X.iloc[tr]))) if smear else 1.0
+            p[va] = np.exp(z) * f
+        else:
+            p[va] = clone(model).fit(X.iloc[tr], y.iloc[tr]).predict(X.iloc[va])
+    return p
+
+
+def boot_ci(y, p, mask, n=2000, seed=42):
+    rng = np.random.default_rng(seed)
+    idx = np.where(mask)[0]
+    vals = [np.mean(np.abs(p[s] - y[s])) for s in (rng.choice(idx, len(idx)) for _ in range(n))]
+    return np.percentile(vals, [2.5, 97.5])
+
+
+GRID = list(itertools.product([100, 200, 300], [2, 3, 4], [0.05, 0.1]))
+
+
+def gbm(ne, md, lr):
+    return GradientBoostingRegressor(n_estimators=ne, max_depth=md, learning_rate=lr, random_state=C.SEED)
+
+
+def nested(X, y, fl):
+    """⑤ 같은 fold 로 고르고 채점(낙관) vs 안쪽 5-Fold 로 고르고 바깥 fold 로 채점(중첩)."""
+    same = {}
+    for g in GRID:
+        same[g] = np.mean([np.mean(np.abs(gbm(*g).fit(X.iloc[tr], y.iloc[tr]).predict(X.iloc[va]) - y.iloc[va])) for tr, va in fl])
+    best = min(same, key=same.get)
+    outer = []
+    picks = []
+    for tr, va in fl:
+        Xi, yi = X.iloc[tr], y.iloc[tr]
+        inner = list(StratifiedKFold(5, shuffle=True, random_state=C.SEED).split(Xi, C.strata(yi)))
+        sc = {g: np.mean([np.mean(np.abs(gbm(*g).fit(Xi.iloc[a], yi.iloc[a]).predict(Xi.iloc[b]) - yi.iloc[b])) for a, b in inner]) for g in GRID}
+        g = min(sc, key=sc.get)
+        picks.append(g)
+        outer.append(np.mean(np.abs(gbm(*g).fit(Xi, yi).predict(X.iloc[va]) - y.iloc[va])))
+    return dict(same_best=best, same_mae=same[best], nested_mae=float(np.mean(outer)), nested_std=float(np.std(outer, ddof=1)),
+                nested_fold_mae=[float(v) for v in outer], nested_picks=picks, grid_size=len(GRID))
+
+
+def export_linear_interaction(X, y, path="data/linear_interaction.json"):
+    """⑥ 4편용: 전체 데이터로 학습한 상호작용 선형 모델의 계산 재료."""
+    Xi = C.add_interactions(X)
+    m = lin().fit(Xi, y)
+    sc, lr = m.named_steps["standardscaler"], m.named_steps["linearregression"]
+    d = dict(columns=list(Xi.columns), mean=sc.mean_.tolist(), scale=sc.scale_.tolist(), coef=lr.coef_.tolist(),
+             intercept=float(lr.intercept_), bmi_obese=C.BMI_OBESE,
+             note="f3.py: LinearRegression on add_interactions(X), all 1,337 rows, StandardScaler inside Pipeline")
+    with open(path, "w") as f:
+        json.dump(d, f, indent=1)
+    return d
+
+
+def run(verbose=True, do_nested=True, save=True):
+    df, X, y, info = C.load_clean_xy()
+    fl = C.folds(y)
+    yv = y.values
+    smk = (X["smoker_yes"] == 1).values
+    top = yv >= np.quantile(yv, 0.9)
+    Xi = C.add_interactions(X)
+    P = {
+        "Linear": oof(lin(), X, y, fl),
+        "Linear + interaction": oof(lin(), Xi, y, fl),
+        "Linear log (exp)": oof(lin(), X, y, fl, log=True),
+        "Linear log + smearing": oof(lin(), X, y, fl, log=True, smear=True),
+        "Linear log + interaction + smearing": oof(lin(), Xi, y, fl, log=True, smear=True),
+        "GBM": oof(C.final_model(), X, y, fl),
+        "GBM log (exp)": oof(C.final_model(), X, y, fl, log=True),
+        "GBM log + smearing": oof(C.final_model(), X, y, fl, log=True, smear=True),
+    }
+    base = np.zeros(len(yv))
+    for tr, va in fl:
+        base[va] = yv[tr].mean()
+    P = {"Baseline": base, **P}
+    tab = pd.DataFrame({k: summ(yv, v, smk, top) for k, v in P.items()}).T
+    # 스미어링 계수 (fold 별)
+    smear = {}
+    for name, model, XX in [("Linear log", lin(), X), ("GBM log", C.final_model(), X)]:
+        fs = []
+        for tr, va in fl:
+            m = clone(model).fit(XX.iloc[tr], np.log(y.iloc[tr]))
+            fs.append(float(np.mean(np.exp(np.log(y.iloc[tr]) - m.predict(XX.iloc[tr])))))
+        smear[name] = fs
+    # ① 신뢰구간
+    ci = {}
+    for name in ["Linear", "Linear + interaction", "GBM"]:
+        p = P[name]
+        fold_mae = [np.mean(np.abs(p[va][smk[va]] - yv[va][smk[va]])) for tr, va in fl]
+        ci[name] = dict(smoker_MAE=float(np.mean(np.abs(p[smk] - yv[smk]))), smoker_CI=boot_ci(yv, p, smk).tolist(),
+                        smoker_fold_min=float(min(fold_mae)), smoker_fold_max=float(max(fold_mae)),
+                        top_MAE=float(np.mean(np.abs(p[top] - yv[top]))), top_CI=boot_ci(yv, p, top).tolist())
+    nst = nested(X, y, fl) if do_nested else None
+    exp = export_linear_interaction(X, y) if save else None
+    out = dict(table=tab, preds=P, smear=smear, ci=ci, nested=nst, export=exp, smk=smk, top=top, y=yv, X=X, df=df)
+    if verbose:
+        print("smokers=%d  top10%%=%d  cost = %.0f x under$ + %.0f x over$ (per person)" % (smk.sum(), top.sum(), COST_UNDER, COST_OVER))
+        print("\n[before / after] 10-decile stratified 5-fold OOF, dollar scale")
+        print(tab[["MAE", "RMSE", "R2", "MAE_smoker", "MAE_top10", "bias", "bias_top10", "under_rate", "cost_3to1", "mean_pred"]].round(
+            {"MAE": 0, "RMSE": 0, "R2": 4, "MAE_smoker": 0, "MAE_top10": 0, "bias": 0, "bias_top10": 0, "under_rate": 3, "cost_3to1": 0, "mean_pred": 0}).to_string())
+        print("mean actual charges = %.0f" % yv.mean())
+        print("\n[smearing factor per fold] mean(exp(log residual)) on training fold")
+        for k, v in smear.items():
+            print("%-12s %s" % (k, [round(x, 4) for x in v]))
+        print("\n[95% bootstrap CI, 2000 bootstrap draws] smoker MAE and top10% MAE")
+        for k, v in ci.items():
+            print("%-22s smoker MAE %.0f  CI [%.0f, %.0f]  fold range [%.0f, %.0f] | top10 MAE %.0f  CI [%.0f, %.0f]" % (
+                k, v["smoker_MAE"], v["smoker_CI"][0], v["smoker_CI"][1], v["smoker_fold_min"], v["smoker_fold_max"],
+                v["top_MAE"], v["top_CI"][0], v["top_CI"][1]))
+        if nst:
+            print("\n[hyperparameter choice, GBM grid %d settings]" % nst["grid_size"])
+            print("pick & score on same 5 folds : best %s  MAE %.0f  (optimistic)" % (nst["same_best"], nst["same_mae"]))
+            print("nested CV (inner 5-fold pick): MAE %.0f +/- %.0f  folds %s" % (nst["nested_mae"], nst["nested_std"], [round(v) for v in nst["nested_fold_mae"]]))
+            print("inner picks per outer fold   : %s" % nst["nested_picks"])
+        if exp:
+            print("\nsaved data/linear_interaction.json  columns=%s" % exp["columns"])
+    return out
+
+
+if __name__ == "__main__":
+    run()
+</script><script type="text/plain" id="src-common" data-file="common.py" data-formal="0">
+"""
+AI(인공지능) x 비즈니스 #1 인슈어테크_03_회귀모델 · 인슈어테크_04_회귀모델_실전 · 공통 코드 (common.py)
+글 · 안상선 ((주)M-Robo 대표) · CC BY-NC 4.0
+
+두 시리즈(1부 개념편 · 2부 문제편)가 똑같이 쓰는 파일입니다. 정리 규칙이 두 부에서 같아야 숫자를 비교할 수 있습니다.
+
+하는 일
+ ① 건강보험 의료비 데이터 읽기 (공개 학습용 데이터, 1,338행 × 7열)
+    읽는 순서: 내 컴퓨터의 data/insurance.csv -> 이 저장소의 raw 주소 -> 원 출처 주소
+ ② 정리 규칙: 완전히 같은 행 1건만 뺀다. 목표값(charges)은 자르거나 고치지 않는다.
+ ③ 범주형 원-핫 인코딩(drop_first) -> 특성 8개
+ ④ 1부의 학습/시험 나누기: charges 10분위로 층화한 80:20, random_state=42 (data/split.csv 와 같음)
+ ⑤ 기준선: 모두에게 "학습 데이터 평균"만 답하기
+ ⑥ (선택) 흡연 x 비만(BMI 30 이상) 상호작용 특성 만들기 - 2부 3·4편에서 씀
+
+원칙: 데이터 증강(합성 행 · 행 복제 · 정답에 잡음 넣기)은 쓰지 않는다. 원본 행만 쓴다.
+"""
+import os
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split, StratifiedKFold
+
+LOCAL_PATHS = ["data/insurance.csv", "../data/insurance.csv", "insurance.csv"]
+REPO_URL = "https://raw.githubusercontent.com/adminmrobo/ai-biz-insurtech-03/main/data/insurance.csv"
+SOURCE_URL = "https://raw.githubusercontent.com/fintech-data/Revolution/main/data/insurance.csv"
+SOURCE_MD5 = "d5364d06246fb4bfa4cc7d1ee89ebd0d"
+SEED = 42
+TARGET = "charges"
+NUM_COLS = ["age", "bmi", "children"]
+CAT_COLS = ["sex", "smoker", "region"]
+BMI_OBESE = 30.0   # WHO 성인 비만 기준 (BMI 30 이상)
+
+
+def load_raw(path=None):
+    """① 원본 데이터 읽기. path 를 주지 않으면 로컬 -> 저장소 -> 원 출처 순서로 찾는다."""
+    if path is None:
+        path = os.environ.get("INS_DATA")
+    if path:
+        return pd.read_csv(path)
+    for p in LOCAL_PATHS:
+        if os.path.exists(p):
+            return pd.read_csv(p)
+    for url in (REPO_URL, SOURCE_URL):
+        try:
+            return pd.read_csv(url)
+        except Exception:
+            pass
+    raise FileNotFoundError("insurance.csv 를 찾지 못했습니다.")
+
+
+def clean(df, verbose=False):
+    """② 정리 규칙. 바뀌는 행 수를 info 에 남긴다.
+
+    - 완전히 같은 행(7개 열이 모두 같음) 1건 -> 뒤의 것을 뺀다
+      (같은 사람이 학습과 시험에 동시에 들어가 점수가 부풀려지는 것을 막기 위해)
+    - charges(목표값): 고액도 그대로 둔다. 자르거나(상한) 지우지 않는다.
+    - bmi IQR 밖 9명(최대 53.13): 사람에게 가능한 값이라 그대로 둔다.
+    - 결측: 없음
+    """
+    n0 = len(df)
+    dup_mask = df.duplicated(keep="first")
+    dup_rows = list(df.index[dup_mask])
+    out = df.loc[~dup_mask].copy()
+    q1, q3 = out[TARGET].quantile([0.25, 0.75])
+    iqr = q3 - q1
+    tgt_iqr = int(((out[TARGET] < q1 - 1.5 * iqr) | (out[TARGET] > q3 + 1.5 * iqr)).sum())
+    b1, b3 = out["bmi"].quantile([0.25, 0.75])
+    biqr = b3 - b1
+    bmi_iqr = int(((out["bmi"] < b1 - 1.5 * biqr) | (out["bmi"] > b3 + 1.5 * biqr)).sum())
+    info = {"rows_raw": n0, "dropped_duplicate_rows": dup_rows, "rows_clean": len(out),
+            "missing": int(df.isna().sum().sum()),
+            "charges_iqr_flagged_kept": tgt_iqr, "bmi_iqr_flagged_kept": bmi_iqr,
+            "charges_changed": 0}
+    if verbose:
+        print("rule | rows changed")
+        print("drop exact duplicate | %d (row %s)" % (len(dup_rows), dup_rows))
+        print("charges IQR flagged, kept as is | %d" % tgt_iqr)
+        print("bmi IQR flagged, kept as is | %d" % bmi_iqr)
+        print("missing values | %d" % info["missing"])
+    return out, info
+
+
+def encode(df):
+    """③ X(원-핫, drop_first) 와 y(charges) 만들기. 열 순서는 고정."""
+    y = df[TARGET].astype(float)
+    X = pd.get_dummies(df.drop(columns=TARGET), columns=CAT_COLS, drop_first=True).astype(float)
+    cols = ["age", "bmi", "children", "sex_male", "smoker_yes",
+            "region_northwest", "region_southeast", "region_southwest"]
+    for c in cols:
+        if c not in X.columns:
+            X[c] = 0.0
+    return X[cols], y
+
+
+def add_interactions(X):
+    """⑥ 흡연 x 비만 상호작용. 흡연자이면서 BMI 30 이상인 사람의 의료비가 따로 뛰는 것을 직선 모델이 잡게 한다."""
+    X = X.copy()
+    X["bmi30"] = (X["bmi"] >= BMI_OBESE).astype(float)
+    X["smoker_bmi30"] = X["smoker_yes"] * X["bmi30"]
+    X["smoker_bmi"] = X["smoker_yes"] * X["bmi"]
+    return X
+
+
+def strata(y, q=10):
+    """분위 층화용 꼬리표: 금액을 q 개 구간으로 나눈 번호."""
+    return pd.qcut(y, q, labels=False, duplicates="drop")
+
+
+def split(X, y):
+    """④ 1부의 학습/시험 나누기 (charges 10분위 층화, 80:20, random_state=42)."""
+    return train_test_split(X, y, test_size=0.2, stratify=strata(y), random_state=SEED)
+
+
+def folds(y, n_splits=5):
+    """2부의 5-Fold: charges 10분위로 층화한 StratifiedKFold(shuffle=True, random_state=42)."""
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=SEED)
+    return list(skf.split(np.zeros(len(y)), strata(y)))
+
+
+def baseline(y_train, n):
+    """⑤ 기준선: 모두에게 학습 데이터 평균만 답한다."""
+    return np.full(n, float(np.mean(y_train)))
+
+
+def metrics(y, p):
+    """주지표 + 보조 지표. MAE 를 주지표로, RMSE · R² · 고액(상위 10%) MAE · 과소 추정 비율을 함께."""
+    y = np.asarray(y, float)
+    p = np.asarray(p, float)
+    e = y - p
+    top = y >= np.quantile(y, 0.9)
+    ss_res = float(np.sum(e ** 2))
+    ss_tot = float(np.sum((y - y.mean()) ** 2))
+    return {"MAE": float(np.mean(np.abs(e))), "RMSE": float(np.sqrt(np.mean(e ** 2))),
+            "R2": 1 - ss_res / ss_tot, "MAE_top10": float(np.mean(np.abs(e[top]))),
+            "under_rate": float(np.mean(p < y)), "bias": float(np.mean(p - y))}
+
+
+# 최종 모델 설정: 1부 3편에서 "학습 데이터만" 5-Fold 교차검증(MAE)으로 고른 값
+# (n_estimators 100/200/300 x max_depth 2/3/4 x learning_rate 0.05/0.1 중 1위)
+FINAL_PARAMS = {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.05, "random_state": SEED}
+
+MODEL_NAMES = ["Linear", "Ridge", "Decision Tree", "KNN", "Gradient Boosting"]
+MODEL_KO = {"Linear": "선형 회귀", "Ridge": "릿지", "Decision Tree": "의사결정나무", "KNN": "KNN",
+            "Gradient Boosting": "그래디언트 부스팅"}
+
+
+def models():
+    """두 부가 같이 쓰는 모델 다섯. 표준화가 필요한 모델은 Pipeline 안에서 학습 데이터에만 fit."""
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.linear_model import LinearRegression, Ridge
+    from sklearn.tree import DecisionTreeRegressor
+    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.ensemble import GradientBoostingRegressor
+    return {
+        "Linear": make_pipeline(StandardScaler(), LinearRegression()),
+        "Ridge": make_pipeline(StandardScaler(), Ridge(alpha=1.0)),
+        "Decision Tree": DecisionTreeRegressor(max_depth=4, random_state=SEED),
+        "KNN": make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=10)),
+        "Gradient Boosting": GradientBoostingRegressor(**FINAL_PARAMS),
+    }
+
+
+def final_model():
+    from sklearn.ensemble import GradientBoostingRegressor
+    return GradientBoostingRegressor(**FINAL_PARAMS)
+
+
+def load_clean_xy():
+    """한 줄로: 읽기 -> 정리 -> X, y (원본 행 번호를 index 로 유지)."""
+    df, info = clean(load_raw())
+    X, y = encode(df)
+    return df, X, y, info
+</script>
+<details class="run"><summary>실행 결과 보기 (정식 코드 f3.py 를 실제로 실행한 출력)</summary><pre>smokers=274  top10%=134  cost = 3 x under$ + 1 x over$ (per person)
+
+[before / after] 10-decile stratified 5-fold OOF, dollar scale
+                                        MAE     RMSE      R2  MAE_smoker  MAE_top10    bias  bias_top10  under_rate  cost_3to1  mean_pred
+Baseline                             9092.0  12106.0 -0.0001     18773.0    29099.0     0.0    -29099.0       0.314    18185.0    13279.0
+Linear                               4206.0   6089.0  0.7470      8660.0     8412.0     5.0     -8412.0       0.371     8407.0    13284.0
+Linear + interaction                 2358.0   4433.0  0.8659      1737.0     2731.0     2.0     -1111.0       0.127     4714.0    13281.0
+Linear log (exp)                     4281.0   8472.0  0.5102     12965.0    13252.0  -325.0     -3729.0       0.369     8887.0    12954.0
+Linear log + smearing                5179.0   9694.0  0.3588     15224.0    14612.0  1471.0      1642.0       0.171     8888.0    14750.0
+Linear log + interaction + smearing  5123.0  10570.0  0.2376     15362.0    21984.0  1795.0     13656.0       0.162     8452.0    15074.0
+GBM                                  2448.0   4524.0  0.8604      2107.0     2877.0   -13.0     -1604.0       0.193     4909.0    13266.0
+GBM log (exp)                        2135.0   4588.0  0.8564      2526.0     3628.0  -659.0     -2278.0       0.262     4929.0    12621.0
+GBM log + smearing                   2692.0   4653.0  0.8523      3547.0     4724.0   315.0       824.0       0.120     5069.0    13595.0
+mean actual charges = 13279
+
+[smearing factor per fold] mean(exp(log residual)) on training fold
+Linear log   [1.1322, 1.1333, 1.146, 1.1335, 1.1461]
+GBM log      [1.0713, 1.074, 1.0858, 1.0672, 1.0867]
+
+[95% bootstrap CI, 2000 bootstrap draws] smoker MAE and top10% MAE
+Linear                 smoker MAE 8660  CI [8319, 9036]  fold range [8471, 8938] | top10 MAE 8412  CI [7720, 9207]
+Linear + interaction   smoker MAE 1737  CI [1389, 2149]  fold range [1489, 2199] | top10 MAE 2731  CI [1972, 3650]
+GBM                    smoker MAE 2107  CI [1721, 2544]  fold range [1824, 2373] | top10 MAE 2877  CI [2051, 3791]
+
+[hyperparameter choice, GBM grid 18 settings]
+pick &amp; score on same 5 folds : best (200, 3, 0.05)  MAE 2448  (optimistic)
+nested CV (inner 5-fold pick): MAE 2466 +/- 141  folds [2637, 2526, 2373, 2515, 2277]
+inner picks per outer fold   : [(200, 3, 0.05), (300, 2, 0.05), (100, 3, 0.05), (300, 2, 0.05), (100, 3, 0.05)]
+
+saved data/linear_interaction.json  columns=[&#x27;age&#x27;, &#x27;bmi&#x27;, &#x27;children&#x27;, &#x27;sex_male&#x27;, &#x27;smoker_yes&#x27;, &#x27;region_northwest&#x27;, &#x27;region_southeast&#x27;, &#x27;region_southwest&#x27;, &#x27;bmi30&#x27;, &#x27;smoker_bmi30&#x27;, &#x27;smoker_bmi&#x27;]</pre></details></div></div></section><section class="part" id="prompt"><div class="wrap"><div class="part-head" style="--kc:var(--seq)"><div class="hex">✦</div><h2>AI와 함께 더 공부하기<span class="en">AI tutor prompt</span></h2><p>ChatGPT·Claude·Gemini 등에 그대로 붙여 넣으세요. [ ] 안만 바꾸면 됩니다.</p></div><div class="body"><div class="prompt"><pre id="prompt-3"># 역할
+당신은 보험 데이터 분석을 가르치는 친절한 튜터입니다. 저는 「AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전」 2부 3편(과제 문항 3) 「그 숫자를 성능이라 부르면 생기는 일」을 공부하고 있습니다.
+
+# 배경
+- 데이터: 공개 학습용 건강보험 의료비 데이터 1,338행 (https://raw.githubusercontent.com/fintech-data/Revolution/main/data/insurance.csv)
+- 열: age(나이) · sex(성별) · bmi(체질량지수) · children(자녀 수) · smoker(흡연 여부) · region(미국 내 지역 4곳) · charges(1년 의료비 청구 금액, 달러 = 맞힐 대상)
+- 완전히 같은 행 1건을 빼고 1,337행을 씁니다. 목표값 charges 는 자르거나 고치지 않습니다(고액은 오류가 아니라 꼬리).
+- 검증은 charges 10분위로 층화한 StratifiedKFold(n_splits=5, shuffle=True, random_state=42) 입니다. fold별 점수 5개와 평균 ± 표준편차를 냅니다.
+- 기준선: 모두에게 학습 데이터 평균만 답하기 (R² = 0 근처)
+- 내 수준: [예: 파이썬은 조금, 통계는 처음]
+
+# 해 줄 일
+1. 제 문항 2 결과를 그대로 성능이라 부를 때의 문제점을 제가 먼저 세 가지 쓰면, 빠진 관점을 질문으로 알려 주세요.
+2. 흡연자 MAE 의 부트스트랩 95% 구간을 계산하는 코드를 보여 주세요(모델은 다시 학습하지 않기).
+3. 흡연 × 비만 상호작용 특성을 Pipeline 에 넣어 5-Fold 로 전/후를 비교하게 도와 주세요.
+4. 로그 타깃 모델의 스미어링 보정을 학습 fold 로만 계산하는 법과, 보정 후 MAE 가 커지는 이유를 설명해 주세요.
+
+# 반드시 지킬 것
+- 기호나 약어(MAE, RMSE, R² 등)는 처음 나올 때 한 줄로 설명하기
+- 데이터 증강(합성 행 · 행 복제 · 정답에 잡음 넣기)은 쓰지 않기
+- 전처리(표준화 · 인코딩)는 Pipeline 안에서 학습 데이터에만 fit (데이터 누수 금지)
+- 여유분 · 하이퍼파라미터는 학습 데이터의 교차검증으로만 고르기 (시험 데이터는 마지막에 한 번만)
+- R² 하나만 보고하지 않기: MAE · RMSE · 고액(상위 10%) MAE · 과소 추정 비율을 기준선과 함께
+- 로그 변환을 썼다면 예측을 달러로 되돌려 평가하기
+- 코드는 Google Colab 에서 바로 실행되게, random_state=42 고정, 내가 바꿀 줄에는 # [변경] 주석
+
+내 결과: [숫자 붙여 넣기 — fold별 점수와 평균 ± 표준편차]
+내가 쓴 문장: [붙여 넣기]
+
+# 답변 형식
+1) 내 숫자를 기준선과 비교해 해석  2) 내 문장에서 틀리거나 과장된 곳  3) 답을 바로 주기 전에, 내가 스스로 확인할 질문 3개</pre></div><div class="btns"><button class="btn small" data-copy="prompt-3">프롬프트 복사</button><button class="btn small" data-save="prompt-3" data-name="ai_prompt_3.txt">.txt 받기</button></div></div></div></section><section class="part" id="glossary"><div class="wrap"><div class="part-head" style="--kc:var(--core)"><div class="hex">?</div><h2>용어 사전<span class="en">Glossary</span></h2><p>비유로 먼저, 뜻은 그다음.</p></div><div class="body"><dl class="gloss"><div><dt>부트스트랩</dt><dd><i>주머니에서 다시 뽑기.</i> 같은 크기로 중복을 허락해 다시 뽑아 지표를 여러 번 재고, 가운데 95%를 구간으로.</dd></div><div><dt>편향 (평균 잔차)</dt><dd><i>한쪽으로 쏠린 오차.</i> mean(예측 − 실제). 음수면 체계적으로 적게 잡는다.</dd></div><div><dt>비대칭 비용</dt><dd><i>적게 잡은 1달러가 더 비쌈.</i> 이 편의 가정: 과소 1달러 : 과대 1달러 = 3 : 1.</dd></div><div><dt>상호작용 특성</dt><dd><i>‘둘 다일 때’ 칸.</i> 흡연 × 비만처럼 두 조건이 함께일 때만 1 이 되는 열. 직선 모델이 꺾인 효과를 표현한다.</dd></div><div><dt>스미어링</dt><dd><i>되돌린 값 키우기.</i> exp(로그 예측) × mean(exp(학습 로그 잔차)). 평균을 맞히는 보정(Duan, 1983).</dd></div><div><dt>옌센 부등식</dt><dd><i>곡선은 평균을 휜다.</i> 볼록 함수 f 에서 f(평균) ≤ 평균(f). exp(로그 평균) < 원래 평균.</dd></div><div><dt>중첩 교차검증</dt><dd><i>고르는 시험과 채점 시험을 분리.</i> 안쪽 CV 로 설정을 고르고 바깥 fold 로 채점.</dd></div></dl></div></div></section><section class="part" id="author-sec"><div class="wrap"><div class="body"><a class="teach-link" href="answers.html#a3">강사·튜터라면 → 교육자용 정답 (3편): 정답 · 채점 기준 · 강의 멘트</a>
+<div class="card"><h3>글 · 안상선 ((주)M-Robo 대표)</h3><p class="cap">(주)M-Robo 대표. 금융·보험 데이터와 AI를 현장에서 쓰는 방법을, 버튼만 눌러 따라 할 수 있는 교재로 만듭니다.</p></div></div></div></section><section class="outro" id="outro"><div class="wrap"><div class="body"><h2>수고하셨습니다!</h2><img class="scene" src="assets/s3.webp" alt="다섯 개의 고장 난 계기판을 하나씩 고치는 조교와, 공구를 든 머니로보" width="1440" height="800" loading="lazy"><div class="chat"><div class="say actuary"><div class="av" data-face="explain" aria-hidden="true"><img src="assets/av_actuary_explain.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>박사<span class="npc" title="NPC">NPC</span></b><ul><li>흡연자 MAE 는 범위로: 그래디언트 부스팅 $2,107, 95% 구간 [$1,721, $2,544]</li><li>선형 + 흡연×비만 상호작용: 흡연자 MAE $8,660 → $1,737, R² 0.747 → 0.866</li><li>로그 되돌리기 편향은 스미어링으로(그래디언트 부스팅 -5.0% → +2.4%). 단, MAE 는 커진다 — 목적이 먼저</li></ul></div></div><div class="say bomi"><div class="av" data-face="proud" aria-hidden="true"><img src="assets/av_bomi_proud.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>조교</b><p>열 세 개로 흡연자 오차가 5분의 1이 됐어요. 머니로보는 승진 대신 상호작용 교육을 받으러 갔대요.</p></div></div><div class="say fly"><div class="av" data-face="idea" aria-hidden="true"><img src="assets/av_fly_idea.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>초파리 연구원</b><p>그럼 이 고친 모델, HTML 하나에 그대로 넣으면 돼요? 저는 작은 손으로 들 수 있는 파일이 좋아요.</p></div></div></div><div class="nav-eps"><a class="btn" href="2_group_errors.html">← 이전 편</a><a class="btn" href="index.html">처음 화면</a><a class="btn primary" href="4_html_deploy.html">다음 편: 그 모델, HTML에 그대로 넣어도 될까 →</a></div></div></div></section></main><footer><div class="wrap"><p><b>그 숫자를 성능이라 부르면 생기는 일</b> · AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전</p><p>글 · 안상선 ((주)M-Robo 대표)</p><p><b>설명용 모형인 것:</b> 이 시리즈는 공개 학습용 건강보험 의료비 데이터(1,338행)를 그대로 씁니다. 가상 데이터를 만들거나 데이터를 증강하지 않습니다. 완전히 같은 행 1건만 빼고, 목표값(charges)은 자르거나 고치지 않습니다.</p><p><b>주의:</b> 이 시리즈는 교육용 설명입니다. 보험 가입 · 보험료 · 보험금 심사 · 투자 · 의료에 대한 조언이 아닙니다. 데이터는 공개 학습 데이터 원본이며, 실제 보험사의 현재 보험료 산정 · 심사 기준을 뜻하지 않습니다. 건강 정보(흡연 · BMI)는 설명용이며 의료 조언이 아닙니다. 실제 보험료 산정에서 성별 · 지역 · 나이 같은 특성의 사용은 감독 규정에 따라 금지되거나 제한될 수 있습니다.</p><p><b>데이터:</b> 공개 학습용 Medical Cost(insurance.csv) 데이터 (<a href="https://raw.githubusercontent.com/fintech-data/Revolution/main/data/insurance.csv">원본 CSV</a>) · 저장소 사본 <a href="data/insurance.csv">data/insurance.csv</a> (md5 <span class="mono">d5364d06246fb4bfa4cc7d1ee89ebd0d</span>) · 나누기 <a href="data/split.csv">data/split.csv</a></p><p><b>참고:</b> scikit-learn User Guide (Linear Models, Nearest Neighbors, Decision Trees, Ensembles, Model evaluation) · Duan, N. (1983). Smearing Estimate: A Nonparametric Retransformation Method. Journal of the American Statistical Association, 78(383), 605–610</p><p><a href="https://creativecommons.org/licenses/by-nc/4.0/deed.ko">CC BY-NC 4.0</a> — 출처 표기 예: “AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전, 글 · 안상선 ((주)M-Robo 대표), CC BY-NC 4.0”</p></div></footer>
+<p id="lang-note" class="note" hidden style="position:fixed;bottom:12px;left:12px;right:12px;z-index:30"></p>
+<script>const SITE="https://adminmrobo.github.io/ai-biz-insurtech-04/";
+// ---------- 공통: 테마 색 읽기 ----------
+function cssv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+const REDRAW=[];function onTheme(f){REDRAW.push(f)}
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>REDRAW.forEach(f=>f()))}catch(e){}
+new MutationObserver(()=>REDRAW.forEach(f=>f())).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+// 캔버스 준비 (선명하게)
+function prep(cv,h){const r=cv.getBoundingClientRect();const w=Math.max(200,r.width||cv.parentNode.clientWidth||600);const d=window.devicePixelRatio||1;cv.width=w*d;cv.height=h*d;cv.style.height=h+'px';const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);return {c,w,h}}
+let RZ;addEventListener('resize',()=>{clearTimeout(RZ);RZ=setTimeout(()=>REDRAW.forEach(f=>f()),150)});
+const fmtP=(x,d=1)=>(x*100).toFixed(d)+'%';
+const nf=n=>Number(n).toLocaleString('en-US');
+// ---------- 확인 문제 ----------
+document.querySelectorAll('.q').forEach(q=>{const ok=q.dataset.ok,fb=q.querySelector('.fb');q.querySelectorAll('.opts button').forEach(b=>b.addEventListener('click',()=>{
+ q.querySelectorAll('.opts button').forEach(x=>x.classList.remove('right','wrong'));
+ if(b.dataset.i===ok){b.classList.add('right');fb.innerHTML='<b>정답입니다.</b> '+q.dataset.ex}else{b.classList.add('wrong');fb.innerHTML='<b>다시 생각해 보세요.</b> '+(b.dataset.why||'')}}))});
+// ---------- 복사 · 내려받기 ----------
+function copyTxt(t,btn){const o=btn.textContent;const done=()=>{btn.textContent='복사됨';setTimeout(()=>btn.textContent=o,1300)};try{navigator.clipboard.writeText(t).then(done,()=>{btn.textContent='직접 선택해 복사하세요'})}catch(e){btn.textContent='직접 선택해 복사하세요'}}
+function saveFile(name,text,type){try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type||'text/plain'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}catch(e){}}
+function toIpynb(src,formal){const lines=src.split('\n');const cells=[];let cur=[];
+ lines.forEach(l=>{if(/^# [①-⑳]/.test(l)&&cur.join('').trim()){cells.push(cur);cur=[]}cur.push(l)});if(cur.join('').trim())cells.push(cur);
+ const mk=a=>{while(a.length&&!a[a.length-1].trim())a.pop();return {cell_type:'code',metadata:{},execution_count:null,outputs:[],source:a.map((l,i)=>i<a.length-1?l+'\n':l)}};
+ const out=cells.map(mk).filter(c=>c.source.join('').trim());
+ if(formal)out.unshift(mk(['# 공통 코드 내려받기 (Colab)','!wget -q -O common.py '+SITE+'code/common.py']));
+ return JSON.stringify({cells:out,metadata:{kernelspec:{name:'python3',display_name:'Python 3'},language_info:{name:'python'}},nbformat:4,nbformat_minor:5},null,1)}
+document.querySelectorAll('.codebox').forEach(box=>{const tabs=[...box.querySelectorAll('.tabs button')];const pre=box.querySelector('pre code');const info=box.querySelector('.tools span');
+ let curId=null;function show(b){tabs.forEach(t=>t.setAttribute('aria-selected',t===b?'true':'false'));curId=b.dataset.src;const s=document.getElementById(curId);pre.textContent=s.textContent.replace(/^\n/,'');info.textContent=b.dataset.info||''}
+ tabs.forEach(t=>t.addEventListener('click',()=>show(t)));if(tabs[0])show(tabs[0]);
+ box.querySelector('[data-act=copy]').addEventListener('click',e=>copyTxt(pre.textContent,e.currentTarget));
+ box.querySelector('[data-act=py]').addEventListener('click',()=>{const s=document.getElementById(curId);saveFile(s.dataset.file,pre.textContent,'text/x-python')});
+ box.querySelector('[data-act=nb]').addEventListener('click',()=>{const s=document.getElementById(curId);saveFile(s.dataset.file.replace(/\.py$/,'.ipynb'),toIpynb(pre.textContent,s.dataset.formal==='1'),'application/json')})});
+document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',e=>copyTxt(document.getElementById(b.dataset.copy).textContent,e.currentTarget)));
+document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click',()=>saveFile(b.dataset.name,document.getElementById(b.dataset.save).textContent)));
+// ---------- 상태 캐릭터 ----------
+function robo(id,st){const w=document.getElementById(id);if(!w||w.dataset.st===st)return;w.dataset.st=st;w.querySelectorAll('[data-rs]').forEach(e=>e.hidden=e.dataset.rs!==st)}
+// ---------- 식구 카드: 모습 바꾸기 ----------
+document.querySelectorAll('.crew .moods button').forEach(b=>b.addEventListener('click',()=>{const card=b.closest('.crew');
+ card.querySelectorAll('.moods button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+ card.querySelectorAll('.cf').forEach(f=>f.classList.toggle('on',f.dataset.face===b.dataset.fb))}));
+// ---------- 막대 (기준선 포함) ----------
+function setBar(el,v,base){el.querySelector('.fill').style.width=Math.max(0,Math.min(1,v))*100+'%';const bl=el.querySelector('.base');if(bl){if(base==null)bl.hidden=true;else{bl.hidden=false;bl.style.left='calc('+base*100+'% - 1px)'}}el.querySelector('.v').textContent=fmtP(v)}
+
+// ---------- 회귀용 도우미 ----------
+const fmtD=(x,d=0)=>(x<0?'−$':'$')+Math.abs(x).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
+const fmt=(x,d=3)=>Number(x).toFixed(d);
+function setBarV(el,frac,base,txt){el.querySelector('.fill').style.width=Math.max(0,Math.min(1,frac))*100+'%';const bl=el.querySelector('.base');if(bl){if(base==null)bl.hidden=true;else{bl.hidden=false;bl.style.left='calc('+Math.max(0,Math.min(1,base))*100+'% - 1px)'}}el.querySelector('.v').textContent=txt}
+// 간단한 좌표 그림: plot(cv,{h,x:[min,max],y:[min,max],xt:[...],yt:[...],xl,yl,xf,yf,draw:(c,X,Y)=>{}})
+function plot(cv,o){const {c,w,h}=prep(cv,o.h||320);const L=o.left||62,R=12,T=12,B=o.bottom||40;const X=v=>L+(v-o.x[0])/(o.x[1]-o.x[0])*(w-L-R);const Y=v=>h-B-(v-o.y[0])/(o.y[1]-o.y[0])*(h-T-B);
+ c.clearRect(0,0,w,h);c.font='11px '+cssv('--f-mono');c.lineWidth=1;
+ (o.yt||[]).forEach(t=>{c.strokeStyle=cssv('--grid');c.beginPath();c.moveTo(L,Math.round(Y(t))+.5);c.lineTo(w-R,Math.round(Y(t))+.5);c.stroke();c.fillStyle=cssv('--muted');c.textAlign='right';c.fillText((o.yf||String)(t),L-6,Y(t)+4)});
+ (o.xt||[]).forEach(t=>{c.fillStyle=cssv('--muted');c.textAlign='center';c.fillText((o.xf||String)(t),X(t),h-B+16)});
+ c.strokeStyle=cssv('--line');c.strokeRect(L+.5,T+.5,w-L-R-1,h-T-B-1);
+ c.fillStyle=cssv('--muted');c.textAlign='center';if(o.xl)c.fillText(o.xl,L+(w-L-R)/2,h-6);
+ if(o.yl){c.save();c.translate(12,T+(h-T-B)/2);c.rotate(-Math.PI/2);c.fillText(o.yl,0,0);c.restore()}
+ c.save();c.beginPath();c.rect(L,T,w-L-R,h-T-B);c.clip();if(o.draw)o.draw(c,X,Y,w,h);c.restore();return {c,X,Y,w,h,L,R,T,B}}
+function dot(c,x,y,r,col,a){c.globalAlpha=a==null?1:a;c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.globalAlpha=1}
+function line(c,pts,col,lw,dash){c.strokeStyle=col;c.lineWidth=lw||2;c.setLineDash(dash||[]);c.beginPath();pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.stroke();c.setLineDash([]);c.lineWidth=1}
+const kfmt=v=>v>=1000?'$'+(v/1000).toFixed(0)+'k':'$'+v;
+
+const D={"y":[16884.9,1725.6,4449.5,21984.5,3866.9,3756.6,8240.6,7281.5,6406.4,28923.1,2721.3,27808.7,1826.8,11090.7,39611.8,1837.2,10797.3,2395.2,10602.4,36837.5,13228.8,4149.7,1137.0,37701.9,6203.9,14001.1,14451.8,12268.6,2775.2,38711.0,35585.6,2198.2,4687.8,13770.1,51194.6,1625.4,15612.2,2302.3,39774.3,48173.4,3046.1,4949.8,6272.5,6313.8,6079.7,20630.3,3393.4,3556.9,12629.9,38709.2,2211.1,3579.8,23568.3,37742.6,8059.7,47496.5,13607.4,34303.2,23244.8,5989.5,8606.2,4504.7,30166.6,4133.6,14711.7,1743.2,14235.1,6389.4,5920.1,17663.1,16577.8,6799.5,11741.7,11946.6,7726.9,11356.7,3947.4,1532.5,2755.0,6571.0,4441.2,7935.3,37165.2,11033.7,39836.5,21098.6,43578.9,11073.2,8026.7,11082.6,2027.0,10942.1,30184.9,5729.0,47291.1,3766.9,12105.3,10226.3,22412.6,15820.7,6186.1,3645.1,21344.8,30942.2,5003.9,17560.4,2331.5,3877.3,2867.1,47055.5,10825.3,11881.4,4646.8,2404.7,11488.3,30260.0,11381.3,19107.8,8601.3,6686.4,7740.3,1705.6,2257.5,39556.5,10115.0,3385.4,17081.1,9634.5,32734.2,6082.4,12815.4,13616.4,11163.6,1632.6,2457.2,2155.7,1261.4,2045.7,27322.7,2166.7,27375.9,3490.5,18972.5,18157.9,20746.0,5138.3,40720.6,9877.6,10959.7,1842.5,5125.2,7789.6,6334.3,19964.7,7077.2,6948.7,21223.7,15518.2,36950.3,19749.4,21348.7,36149.5,10450.6,5152.1,5028.1,10407.1,4830.6,6128.8,2719.3,4827.9,13405.4,8116.7,1694.8,5246.0,2855.4,48824.4,6455.9,10436.1,8823.3,8538.3,11735.9,1631.8,4005.4,7419.5,7731.4,43753.3,3982.0,5325.7,6776.0,4922.9,12557.6,4883.9,2137.7,12044.3,1137.5,1639.6,5649.7,8516.8,9644.3,14901.5,2130.7,8871.2,13012.2,37133.9,7147.1,4337.7,11743.3,20984.1,13880.9,6610.1,1980.1,8162.7,3537.7,5002.8,8520.0,7371.8,10355.6,2483.7,3393.0,25081.8,5012.5,10564.9,5253.5,34779.6,19515.5,11987.2,2689.5,24227.3,7358.2,9225.3,7443.6,14001.3,1727.8,12333.8,6710.2,19444.3,1615.8,4463.2,17352.7,7152.7,38511.6,5354.1,35160.1,7196.9,29523.2,24476.5,12648.7,1986.9,1832.1,4040.6,12829.5,47305.3,44260.7,4260.7,41097.2,13047.3,43921.2,5401.0,11520.1,33750.3,11837.2,17085.3,24869.8,36219.4,20463.0,46151.1,17179.5,14590.6,7441.1,9282.5,1719.4,42856.8,7265.7,9617.7,2523.2,9715.8,2803.7,2150.5,12928.8,9855.1,22331.6,48549.2,4237.1,11879.1,9625.9,7742.1,9432.9,14256.2,47896.8,25992.8,3172.0,20277.8,42112.2,2156.8,3906.1,1704.6,16297.8,21978.7,38746.4,9249.5,6746.7,24873.4,12265.5,4349.5,12646.2,19442.4,20177.7,4151.0,11944.6,7749.2,8444.5,1737.4,42124.5,8124.4,34838.9,9722.8,8835.3,10435.1,7421.2,4667.6,4894.8,24671.7,35491.6,11566.3,2866.1,6600.2,3561.9,42760.5,47928.0,9144.6,48517.6,24393.6,13429.0,11658.4,19144.6,13822.8,12142.6,13937.7,41919.1,8232.6,18955.2,13352.1,13217.1,13981.9,10977.2,6184.3,4890.0,8334.5,5478.0,1635.7,11830.6,8932.1,3554.2,12404.9,14133.0,24603.0,8944.1,9620.3,1837.3,1607.5,10043.2,4751.1,13844.5,2597.8,3180.5,9778.3,13430.3,8017.1,8116.3,3481.9,13415.0,12029.3,7639.4,36085.2,1391.5,18034.0,21659.9,38126.2,16455.7,27001.0,15006.6,42303.7,20781.5,5846.9,8302.5,1261.9,11856.4,30284.6,3176.8,4618.1,10736.9,2138.1,8964.1,9290.1,9411.0,7526.7,8522.0,16586.5,14988.4,1631.7,9264.8,8083.9,14692.7,10269.5,3260.2,11396.9,4185.1,8539.7,6652.5,4074.5,1621.3,19594.8,14455.6,5080.1,2134.9,7345.7,9141.0,18608.3,14418.3,28950.5,46889.3,46599.1,39125.3,2727.4,8968.3,9788.9,6555.1,7323.7,3167.5,18804.8,23083.0,4906.4,5969.7,12638.2,4243.6,13919.8,2254.8,5926.8,12592.5,2897.3,4738.3,37079.4,1149.4,28287.9,26109.3,7345.1,12731.0,11454.0,5910.9,4762.3,7512.3,4032.2,1969.6,1769.5,4686.4,21797.0,11882.0,11840.8,10601.4,7682.7,10381.5,22144.0,15230.3,11165.4,1632.0,19522.0,13224.7,12643.4,23288.9,2201.1,2497.0,2203.5,1744.5,20878.8,25382.3,28868.7,35147.5,2534.4,1534.3,1824.3,15555.2,9304.7,1622.2,9880.1,9563.0,4347.0,12475.4,1253.9,48885.1,10462.0,1748.8,24513.1,2196.5,12574.0,17942.1,1967.0,4931.6,8028.0,8211.1,13470.9,36197.7,6837.4,22218.1,32548.3,5974.4,6796.9,2643.3,3077.1,3044.2,11455.3,11763.0,2498.4,9361.3,1256.3,21082.2,11362.8,27724.3,8413.5,5240.8,3857.8,25656.6,3994.2,9866.3,5397.6,38245.6,11482.6,24059.7,9861.0,8342.9,1708.0,48675.5,14043.5,12925.9,19214.7,13831.1,6067.1,5972.4,8825.1,8233.1,27346.0,6196.4,3056.4,13887.2,63770.4,10231.5,23807.2,3268.8,11538.4,3213.6,45863.2,13390.6,3972.9,12957.1,11187.7,17878.9,3847.7,8334.6,3935.2,39983.4,1646.4,9193.8,10923.9,2494.0,9058.7,2801.3,2128.4,6373.6,7256.7,11552.9,45702.0,3761.3,2219.4,4753.6,31620.0,13224.1,12222.9,1665.0,58571.1,9724.5,3206.5,12914.0,6356.3,17626.2,1242.8,4779.6,3861.2,43943.9,13635.6,5976.8,11842.4,8428.1,2566.5,15359.1,5709.2,8824.0,7640.3,5594.8,7441.5,33472.0,1633.0,9174.1,11070.5,16085.1,17469.0,9283.6,3558.6,25678.8,4435.1,39241.4,8547.7,6571.5,2207.7,6753.0,1880.1,42969.9,11658.1,23306.5,34439.9,10713.6,3659.3,40182.2,9182.2,34617.8,12129.6,3736.5,6748.6,11326.7,11366.0,42983.5,10085.8,1977.8,3366.7,7173.4,9391.3,14410.9,2709.1,24915.0,20149.3,12949.2,6666.2,32787.5,13143.9,4466.6,18806.1,10141.1,6123.6,8252.3,1712.2,12431.0,9800.9,10579.7,8280.6,8527.5,12244.5,24667.4,3410.3,4058.7,26392.3,14394.4,6435.6,22192.4,5148.6,1136.4,27037.9,42560.4,8703.5,40003.3,45710.2,6500.2,4837.6,3943.6,4399.7,6185.3,46201.0,7222.8,12485.8,46130.5,12363.5,10156.8,2585.3,1242.3,40103.9,9863.5,4766.0,11244.4,7729.6,5438.7,26236.6,34806.5,2104.1,8068.2,2362.2,2353.0,3578.0,3201.2,29186.5,40273.6,10976.2,3500.6,2020.6,9541.7,9504.3,5385.3,8930.9,5375.0,44400.4,10264.4,6113.2,5469.0,1727.5,10107.2,8310.8,1984.5,2457.5,12147.0,9567.0,13112.6,10848.1,12231.6,9875.7,11264.5,12979.4,1263.2,10106.1,40932.4,6664.7,16657.7,2217.6,6781.4,19362.0,10065.4,4234.9,9447.3,14007.2,9583.9,40419.0,3484.3,36189.1,44585.5,8604.5,18246.5,43254.4,3757.8,8827.2,9910.4,11737.8,1627.3,8556.9,3062.5,19539.2,1906.4,14210.5,11833.8,17128.4,5031.3,7985.8,23065.4,5428.7,36307.8,3925.8,2417.0,19040.9,3070.8,9095.1,11842.6,8062.8,7050.6,14319.0,6933.2,27941.3,11150.8,12797.2,17748.5,7261.7,10560.5,6986.7,7448.4,5934.4,9869.8,18259.2,1146.8,9386.2,24520.3,4350.5,6414.2,12741.2,1917.3,5209.6,13458.0,5662.2,1252.4,2731.9,21195.8,7209.5,18310.7,4266.2,4719.5,11848.1,17904.5,7046.7,14313.8,2103.1,38792.7,1815.9,7731.9,28476.7,2136.9,1131.5,3309.8,9414.9,6361.0,11013.7,4428.9,5584.3,1877.9,2842.8,3597.6,23401.3,55135.4,7445.9,2680.9,1621.9,8219.2,12523.6,16069.1,43813.9,20773.6,39597.4,6117.5,13393.8,5266.4,4719.7,11743.9,5377.5,7160.3,4402.2,11657.7,6402.3,12622.2,1526.3,12323.9,36021.0,27533.9,10072.1,45009.0,9872.7,2438.1,2974.1,10601.6,37270.2,14119.6,42111.7,11729.7,24106.9,1875.3,40974.2,15818.0,18218.2,10965.4,46113.5,7151.1,12269.7,5458.0,8782.5,6600.4,1141.4,11576.1,13129.6,4391.7,8457.8,3392.4,5966.9,6849.0,8891.1,2690.1,26140.4,6653.8,6282.2,6312.0,3443.1,2789.1,2585.9,46255.1,4878.0,19719.7,27218.4,5272.2,1682.6,11945.1,29331.0,7243.8,10422.9,44202.7,13555.0,13063.9,19798.1,2221.6,1634.6,2117.3,8688.9,48673.6,4661.3,8125.8,12644.6,4564.2,4846.9,7633.7,15170.1,17496.3,2639.0,33732.7,14382.7,7627.0,5257.5,2473.3,21774.3,35069.4,13041.9,5245.2,13451.1,13462.5,5488.3,4320.4,6250.4,25333.3,2913.6,12032.3,13470.8,6289.8,2927.1,6238.3,10097.0,7348.1,4673.4,12233.8,32108.7,8965.8,2304.0,9487.6,1121.9,9549.6,2217.5,1628.5,12982.9,11674.1,7160.1,39047.3,6358.8,19933.5,11534.9,47462.9,4527.2,38998.5,20009.6,3875.7,41999.5,12609.9,41034.2,28468.9,2730.1,3353.3,14474.7,9500.6,26467.1,4746.3,23967.4,7518.0,3279.9,8596.8,10702.6,4992.4,2527.8,1759.3,2322.6,16138.8,7804.2,2902.9,9704.7,4889.0,25517.1,4500.3,19199.9,16796.4,4915.1,7624.6,8410.0,28340.2,4518.8,14571.9,3378.9,7144.9,10118.4,5484.5,16420.5,7986.5,7418.5,13888.0,6551.8,5267.8,17361.8,34472.8,1973.0,21232.2,8627.5,4433.4,4438.3,24915.2,23241.5,9957.7,8269.0,18767.7,36580.3,8765.2,5383.5,12125.0,2709.2,3987.9,12495.3,26019.0,8798.6,35595.6,42211.1,1711.0,8569.9,2020.2,16450.9,21595.4,9850.4,6878.0,21677.3,44423.8,4137.5,13747.9,12950.1,12094.5,37484.4,39725.5,2250.8,22493.7,20234.9,1704.7,33475.8,3161.5,11394.1,21880.8,7325.0,44501.4,3594.2,39727.6,8023.1,14394.6,9288.0,25309.5,3353.5,10594.5,8277.5,17929.3,2481.0,4462.7,1981.6,11554.2,48970.2,6548.2,5708.9,7045.5,8978.2,5757.4,14349.9,10928.8,39871.7,13974.5,1909.5,12096.7,13204.3,4562.8,8551.3,2102.3,34672.1,15161.5,11884.0,4454.4,5855.9,4076.5,15019.8,19023.3,10796.4,11353.2,9748.9,10577.1,41676.1,11286.5,3591.5,33907.5,11299.3,4561.2,44641.2,1674.6,23045.6,3227.1,16776.3,11253.4,3471.4,11363.3,20420.6,10338.9,8988.2,10493.9,2904.1,8605.4,11512.4,41949.2,24180.9,5312.2,2396.1,10807.5,9222.4,36124.6,38282.7,5693.4,34166.3,8347.2,46661.4,18903.5,40904.2,14254.6,10214.6,5836.5,14358.4,1728.9,8582.3,3693.4,20709.0,9991.0,19673.3,11085.6,7623.5,3176.3,3704.4,36898.7,9048.0,7954.5,27118.0,6338.1,9630.4,11289.1,52590.8,2261.6,10792.0,5979.7,2203.7,12235.8,40941.3,5630.5,11015.2,7228.2,39722.7,14426.1,2459.7,3989.8,7727.3,5124.2,18963.2,2200.8,7153.6,5228.0,10982.5,4529.5,4670.6,6112.4,17178.7,22478.6,11093.6,6457.8,4433.9,2154.4,23887.7,6496.9,2899.5,19350.4,7650.8,2850.7,2633.0,9447.4,18328.2,8603.8,37465.3,13844.8,21771.3,13126.7,5327.4,13725.5,13019.2,8671.2,4134.1,18838.7,33307.6,5699.8,6393.6,4934.7,6198.8,8733.2,2055.3,9964.1,18223.5,5116.5,36910.6,38415.5,20296.9,12347.2,5373.4,23563.0,1702.5,10806.8,3956.1,12890.1,5415.7,4058.1,41661.6,7537.2,4718.2,6593.5,8442.7,26125.7,6858.5,4795.7,6640.5,7162.0,10594.2,11938.3,60021.4,20167.3,12479.7,11345.5,8515.8,2699.6,14449.9,12224.4,6985.5,3238.4,47269.9,49577.7,4296.3,3171.6,1135.9,5615.4,9101.8,6059.2,1634.0,37607.5,18648.4,1241.6,16232.8,15828.8,4415.2,6474.0,11436.7,11305.9,30063.6,10197.8,4544.2,3277.2,6770.2,7337.7,10370.9,26926.5,10704.5,34254.1,1880.5,8615.3,3292.5,3021.8,14478.3,4747.1,17043.3,10959.3,2741.9,4357.0,22462.0,4189.1,8283.7,24535.7,14283.5,1720.4,47403.9,8534.7,3732.6,5472.4,38344.6,7147.5,7133.9,34828.7,1515.3,9301.9,11931.1,1964.8,1708.9,4340.4,5261.5,2710.8,62592.9,46718.2,3208.8,37829.7,21259.4,2464.6,16115.3,21472.5,33900.7,6876.0,6940.9,4571.4,4536.3,36397.6,18765.9,11272.3,1731.7,1163.5,19496.7,7201.7,5425.0,28101.3,12981.3,43896.4,4239.9,13143.3,7050.0,9377.9,22395.7,10325.2,12629.2,10795.9,11411.7,10600.5,2206.0,1629.8,2007.9,29141.4],"s":[1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1,0,0,1,1,0,1,0,1,1,0,0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,0,0,0,0,1,0,1,0,0,0,1,1,0,0,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,1,0,0,0,0,0,0,1,0,0,1,1,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,1,0,0,0,1,0,0,0,0,0,1,1,1,0,1,0,1,0,0,1,0,1,1,1,0,1,1,0,0,0,0,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,0,0,0,1,1,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,1,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,1,0,1,1,0,0,1,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,1,0,1,1,0,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,1,0,1,1,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,1,0,1,0,1,0,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,1,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,1,0,1,1,0,1,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,1,0,0,1,1,0,0,1,0,1,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,1,0,0,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,1,1,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,1,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,0,0,1,0,0,1,1,0,1,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1,1,0,1,1,0,1,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],"p":{"Linear":[24935.8,3140.2,6416.7,3702.2,5617.1,3724.4,10734.2,7910.5,8362.8,12300.0,3187.8,35693.4,4684.7,14754.0,31251.6,305.9,12542.7,1883.6,15136.4,31080.4,15888.4,6107.6,2867.5,31933.2,7350.0,12618.1,12500.4,14067.7,-23.3,31902.1,28072.2,1758.0,3436.2,13301.4,30322.1,-792.8,16378.7,393.4,34239.8,39287.0,3152.7,8307.8,5483.3,7928.8,10672.8,13801.8,6725.4,6378.5,10753.7,32199.1,4537.1,5303.9,33485.2,31423.4,9322.5,40152.8,14875.0,26651.9,32464.3,9986.6,9990.9,6666.2,12889.3,4089.8,24564.6,1901.8,16646.7,7486.2,9576.8,28367.0,26601.6,7749.7,11552.1,12943.6,8611.2,13997.1,4914.2,4147.0,7206.9,9637.4,5150.5,12500.0,29152.5,16202.5,33663.0,32143.0,36294.6,10689.7,9211.8,10943.2,6050.6,9941.8,38571.8,9163.2,38825.7,7249.1,12886.7,14081.0,32477.3,26851.5,8403.4,3948.7,2729.9,37922.4,5687.9,26319.8,2193.2,5871.1,3562.6,38833.0,13325.2,12438.2,6798.6,5448.1,13879.0,12932.2,18545.7,27821.3,8700.7,6039.3,11986.4,989.6,2846.3,33940.0,12874.5,4394.6,25478.3,13261.7,26551.5,9510.8,12221.7,11373.7,13594.6,951.3,2982.5,2394.9,3133.3,1589.6,13113.4,5223.8,4755.5,5945.1,29738.5,6078.0,30005.2,9381.8,34691.0,13206.5,14716.7,1859.4,5219.8,9374.7,10499.0,30788.7,7559.6,12505.9,31252.6,24491.2,30335.9,10652.3,31471.3,28120.5,14666.4,6431.0,7051.1,11852.0,7227.6,8741.5,3840.5,3132.3,17074.2,9765.2,-1831.1,8355.1,5447.1,39987.6,7818.4,11169.9,9673.2,11553.8,11937.1,4731.1,2130.3,8123.2,9597.2,36763.2,4791.7,6615.6,8968.7,6922.6,13219.4,5116.4,1740.4,11647.6,3629.6,2541.1,8465.4,9333.6,6583.3,18228.2,3493.2,10733.5,11261.2,29833.2,6096.0,5584.1,10967.8,31785.9,14303.9,12678.0,4151.6,10011.8,4163.6,5315.1,10205.7,11024.4,10692.0,2066.7,4466.7,984.2,7929.5,12949.5,6618.4,26847.3,30364.8,13779.1,6861.0,15942.9,9901.8,9907.2,11373.1,13076.2,-2112.9,11969.2,7024.7,29416.9,455.7,8954.7,26004.3,11499.2,31785.7,4647.4,10876.5,10507.8,37593.9,11545.5,15155.5,5113.2,-938.0,5898.6,23680.9,39103.8,36924.1,5761.9,35075.8,12076.7,37256.2,10677.1,11301.8,27026.8,10644.8,25477.8,34926.3,29274.7,14918.2,38457.7,28644.7,15716.4,9104.5,9961.4,1667.6,36736.3,11621.0,10753.7,3306.4,10125.5,43.5,871.0,13970.6,7794.9,32119.1,40534.2,5655.1,13513.0,10993.6,8190.4,17142.0,12961.2,39758.0,10532.9,5840.3,6075.1,33500.8,2408.2,3584.8,551.8,25651.1,31615.6,32813.0,10511.1,8308.5,34482.5,14761.3,6178.1,15843.6,7457.0,4592.2,6596.7,14878.8,10436.5,8847.3,153.2,34955.5,11568.6,27935.9,12589.0,11164.5,12851.9,8647.4,9267.2,5331.0,6388.8,30445.0,16369.9,3458.5,10382.4,2403.6,36747.9,39298.5,12775.4,40239.9,34490.3,14217.2,12553.2,11877.1,15081.9,11237.9,13202.8,35923.4,8711.7,2512.9,13418.3,12545.3,16625.5,15840.5,6901.6,8795.5,11635.1,6888.7,2404.1,10607.0,8624.2,4127.6,8551.3,4841.8,8118.6,14971.9,11431.8,7025.6,-1197.5,12325.0,6629.9,23584.6,2100.3,1070.3,11684.5,14885.9,8037.0,10632.9,4507.3,10457.9,10615.6,10526.7,29391.2,3042.7,27309.7,32358.4,29814.4,15391.8,13779.1,25547.4,36546.3,12314.0,11511.8,7668.4,3231.7,15000.8,10035.0,2111.9,5687.0,14694.9,5281.8,11537.1,11768.6,11808.6,5980.1,11362.1,2547.6,12961.7,4802.3,7212.0,15705.5,15639.5,12767.1,1541.0,14996.1,3601.1,7553.1,5657.2,5707.3,-1061.3,30520.8,25540.2,3905.2,4803.6,10538.9,11918.8,28604.4,17198.2,36499.3,38986.6,38123.9,33356.9,4874.7,10538.8,8880.3,7504.1,2564.9,-248.8,6324.2,2780.0,2930.2,6811.8,12562.8,5638.7,14759.6,4207.1,7274.6,18952.0,4737.8,7124.8,31077.9,5863.1,14938.6,35308.3,9952.5,13362.0,10745.7,7267.0,9675.9,9292.0,4009.8,1539.2,2523.3,11926.5,14870.6,12047.2,12614.8,14682.0,10076.4,13630.4,32278.4,18019.3,11235.2,1046.0,28426.7,12525.8,14322.7,4038.4,185.4,4782.7,2884.3,2352.7,11265.6,34780.9,37427.3,28152.4,5768.2,5027.7,3670.9,18985.8,13220.5,2508.7,14400.2,12054.5,6627.6,10631.0,1754.4,35266.0,12174.1,3390.2,10986.7,1191.5,17539.7,26381.4,2883.8,3798.9,8998.6,7261.5,16010.9,29839.4,7852.5,32028.0,25254.3,7025.1,9148.4,4169.0,2208.3,2894.1,11204.1,13803.8,5600.7,8280.6,2030.3,31418.4,13859.1,4287.7,10483.5,6968.0,6349.6,10229.9,10588.1,12457.0,9596.8,30472.7,3355.4,3749.4,9329.0,13523.0,1068.3,40327.7,14466.7,12980.6,8628.3,16942.6,7822.4,10273.8,10113.9,8728.7,10983.4,10336.9,3894.3,15289.0,40176.7,11866.6,33541.0,7084.0,18190.4,4165.7,37495.0,13445.8,5165.9,9904.6,12616.1,8244.9,3485.6,11588.8,7103.3,33648.8,4979.4,7125.9,13330.3,4035.6,15522.0,3496.2,3133.4,11669.8,9355.2,12532.1,38699.4,5090.2,4886.8,10199.9,16573.7,14867.2,11749.7,2080.1,32841.2,11070.7,2426.8,11869.4,13192.0,3715.8,-1261.7,5535.3,1261.1,31271.8,15617.9,7715.3,12008.2,6706.2,3800.9,24963.3,11061.5,11562.2,8606.9,8555.5,10103.8,14775.9,5029.4,11395.8,9802.0,17648.0,25380.7,11903.6,3619.4,34952.2,5327.5,31911.1,9520.5,9427.8,3964.7,4370.4,3440.4,35920.5,12210.6,33571.6,27418.2,14139.7,5520.4,33727.1,7353.8,27539.1,12453.5,4186.4,8021.9,10055.0,14809.7,36414.3,13287.1,2926.7,6631.8,6766.0,14070.9,17594.0,1361.0,10690.7,30631.2,14972.6,12510.0,33803.0,15040.3,6667.1,10696.9,11802.3,6786.6,7391.2,2419.5,14491.0,15023.0,14785.3,10023.0,11943.6,13918.0,34197.4,8404.8,6674.5,12788.7,14354.0,14020.8,10090.7,7488.6,3197.8,34793.5,35274.6,9894.3,34021.1,38724.9,7922.9,7203.1,5961.4,6504.3,8176.0,37997.5,6681.0,16600.5,38706.1,14926.3,9244.6,-1275.6,-1523.4,34364.3,9240.4,2217.7,11794.4,8150.5,11507.5,7769.5,28301.6,2511.3,11659.8,4568.0,1778.4,6397.4,8417.6,13703.6,33431.2,13436.7,6955.0,3913.3,16442.0,14653.3,5953.7,10468.4,7458.0,36999.5,11119.5,7623.7,6692.5,4277.5,8866.1,10263.4,7080.5,831.9,12282.7,8669.3,11527.5,13975.9,13820.6,14854.6,14635.9,15672.8,3824.2,10327.2,32781.2,8203.8,27654.1,6379.8,10423.8,28937.7,8441.8,4861.9,10269.1,14494.2,12757.5,33271.9,2915.3,29311.3,31098.7,8544.2,28150.5,36611.4,4015.2,9604.3,11224.8,6067.5,-356.6,11843.6,5650.3,29681.0,2833.1,16590.1,9661.3,7059.8,6422.0,6952.8,32585.3,9964.3,28954.0,6436.0,5630.8,28685.4,3828.1,8994.0,13513.5,10603.8,8309.0,16679.5,5179.4,16605.6,10929.1,11945.8,26345.8,10762.9,12970.4,9847.6,12968.8,8618.0,11173.9,27806.6,5733.2,12707.5,33664.3,5335.7,6899.6,15810.1,5122.8,4809.9,13056.8,11164.5,1706.5,1505.8,31025.9,9414.5,27811.3,10431.7,4035.1,13115.4,29126.9,7130.0,15426.7,383.9,30054.4,1646.8,11660.4,12908.1,4607.0,1536.2,3226.3,10890.4,12158.0,9121.9,4032.4,9096.7,2532.3,2344.1,6954.4,33210.8,32346.8,10425.5,141.9,1898.8,9365.0,10987.1,16286.1,37428.2,31558.9,34281.6,5522.4,14360.6,5910.8,3936.0,14191.8,9007.3,10665.1,7221.7,12117.1,5798.3,13397.7,2797.9,11461.1,28428.7,35192.1,12078.5,37350.9,12144.3,10686.1,2245.4,13049.5,31422.0,15322.8,35848.8,11024.9,34499.5,2533.4,34700.3,26424.6,4693.5,11017.4,37066.5,8011.9,14255.1,4091.8,8895.0,8457.3,4586.7,16856.7,11305.9,3384.4,12032.3,4078.6,6370.4,8552.2,8530.9,3009.7,9414.2,9731.9,7574.6,7490.4,5937.5,3064.1,1102.0,38804.8,4638.8,29719.0,36548.1,7255.3,5730.3,14113.0,37249.9,8383.2,9634.7,36813.6,14836.2,17512.8,30574.4,1747.9,5490.6,267.3,8275.3,39994.5,4860.3,12014.7,14122.1,5587.6,7769.4,9719.1,18344.4,27287.1,3430.4,26891.5,13657.8,8287.2,5492.5,4678.8,31778.7,31046.7,12330.7,8203.5,11543.8,14511.8,7515.7,8505.8,5644.3,12363.6,991.3,8989.1,16519.2,9411.1,9890.1,8599.5,9741.6,10446.8,8647.9,11296.4,9962.2,8084.6,1363.6,10312.4,-125.4,15804.5,6399.7,48.3,16541.0,14172.2,10922.1,33901.6,8846.2,29138.6,9055.2,39489.8,5619.1,33883.2,30499.5,8991.0,36020.4,3203.5,34861.4,12752.1,6199.7,3172.8,15331.5,9444.1,14359.6,5777.8,34164.6,7770.9,3380.5,10654.3,10536.5,4939.9,35.7,6063.7,5441.0,26632.1,12973.3,3716.7,14743.5,6487.8,11035.6,3997.0,28866.4,5823.5,5083.9,7674.8,10474.8,9101.6,8505.2,25377.3,979.9,8000.0,11748.3,6911.2,26557.6,7111.8,10228.7,16022.7,10315.6,5893.3,27612.8,27471.6,1656.8,9231.6,7073.4,6613.6,6163.9,34708.8,3351.8,10969.7,6958.3,30231.8,15898.3,11313.3,6341.5,11515.2,1623.3,6475.5,15207.2,5046.0,12661.3,28632.3,35355.2,-373.1,15288.3,4220.7,26263.0,-196.3,11498.5,4223.3,32044.3,37032.9,5164.6,24331.2,16002.5,10119.4,29470.2,34113.3,3546.5,2641.8,30412.8,584.0,26823.6,3242.9,14347.2,32061.6,7578.9,35418.0,2166.9,33446.4,12161.1,13633.5,10855.1,34347.3,1961.1,11324.8,9339.1,9268.6,6638.4,7610.1,3731.8,11562.5,40773.0,7728.6,4706.1,6981.5,12688.0,12254.7,11624.3,12346.2,32960.8,14709.0,3606.0,12820.0,9421.7,5852.1,10676.4,2075.0,28369.1,16146.3,176.5,5647.1,4589.2,6290.0,15164.7,28950.6,11901.2,12831.9,16894.2,9028.8,35527.5,12353.0,5185.2,27665.8,12895.8,4834.0,37676.7,3846.9,11704.0,5270.7,28323.7,11460.8,7806.7,14181.8,6462.4,11611.8,10745.0,10542.9,3984.9,7137.5,13586.2,35746.8,33135.2,5091.7,2482.2,12620.3,11410.9,29120.0,31621.8,3829.9,27177.3,12487.3,39413.3,6526.0,32978.4,12552.2,11287.8,9299.1,7056.0,-1701.9,7157.0,10727.2,16144.4,7290.8,6240.7,11466.5,7390.3,1761.7,5945.4,27944.7,12693.3,10308.4,8666.3,9136.8,11856.6,13401.7,37270.2,3695.5,8565.2,9173.3,2998.6,15351.3,34204.3,9155.1,11476.2,6440.3,30411.1,2406.3,3683.9,9635.9,11096.4,10949.3,8160.4,2290.2,8456.0,5904.4,15357.9,3973.6,7714.1,9105.0,25803.5,32414.5,15413.6,8366.7,7091.7,1728.1,33595.1,7094.4,5600.9,28261.3,13304.8,3871.0,3686.9,10059.6,27469.0,8392.9,29494.1,14621.8,32062.4,2482.6,7914.6,6580.2,14577.7,12222.7,3096.2,3666.5,26891.2,8629.6,8503.6,4752.7,6182.3,14082.0,4577.7,12605.4,26390.0,3163.3,15018.3,32152.8,30671.9,15217.2,7793.3,9219.5,-273.2,12661.9,5643.6,5758.3,5376.9,7896.2,34570.7,8984.8,3797.3,6744.2,8038.0,24049.6,7186.3,9699.9,4253.3,11526.1,12863.1,12917.2,37629.7,22949.0,11438.4,9655.9,8965.5,5218.6,11774.3,12099.5,6973.1,8462.9,39369.3,40495.2,2161.0,5174.3,3261.5,4782.0,8590.0,6797.5,5041.6,31620.6,28603.2,-1556.9,25765.1,9197.0,5233.0,10522.5,14735.0,11465.1,16118.8,9128.8,3385.4,7190.4,7591.0,8719.9,12958.2,35523.3,11502.3,27998.7,3738.7,8969.7,6065.6,6025.4,8789.9,5947.4,27217.1,9542.0,4045.0,6217.6,32196.6,4204.2,10600.8,34037.8,23441.3,2547.3,39619.9,8206.4,1082.3,5519.6,29584.6,10421.8,5839.4,26880.1,-200.2,9561.8,11076.6,-293.0,1318.4,4065.6,6112.6,1736.9,32118.2,39313.7,1045.3,31789.8,31798.1,2602.3,26596.8,31816.4,27709.3,9101.4,7744.9,5022.0,10931.8,29137.4,28529.5,2304.9,-1076.2,9760.1,12620.8,7538.7,7756.3,36944.5,15998.6,35907.6,4761.3,15230.3,9856.9,10775.1,2972.3,14358.1,11358.6,4196.7,16682.2,12465.3,3546.1,3774.9,1109.1,37305.2],"Linear + interaction":[16441.5,2247.6,5666.4,6069.9,5815.3,5488.5,10281.9,9247.6,8589.2,13799.4,4472.8,27605.6,2886.0,12521.8,40362.5,1676.6,12740.7,3961.7,11517.1,38093.0,14339.1,5384.5,1756.2,39356.7,7993.2,14449.7,14975.3,13650.4,4071.5,39494.2,35519.3,3009.2,4304.4,13890.1,38076.2,2206.9,16020.8,3141.8,41645.4,47853.4,4686.0,6673.4,8271.2,8249.2,8555.1,11218.3,4226.1,5159.8,13022.3,39952.1,3174.4,4587.0,24398.2,39194.6,9883.3,48041.4,14859.9,33852.6,24138.4,7832.7,10859.8,5828.0,14738.7,5809.3,15035.7,2112.6,14404.7,8533.7,8281.6,18793.2,17742.6,8434.1,12379.3,12599.4,9184.2,12649.0,5608.3,2583.8,4399.3,8920.3,6107.4,10414.1,37776.6,12953.2,41106.3,22576.5,43856.5,11927.9,10096.0,12428.8,3207.8,12335.5,30871.3,7783.4,45836.0,5310.7,13243.3,11753.6,22940.1,16037.4,8051.0,5357.4,3238.0,30555.3,6566.3,17973.1,2641.9,5704.7,4201.6,46781.8,12230.7,12716.6,6163.3,3848.8,13456.5,13471.3,12715.1,20180.7,10185.8,8768.5,9582.2,2478.6,3309.9,41223.7,11916.2,5199.3,17163.3,10854.5,16201.8,7802.6,13705.7,14701.9,12254.1,2292.5,3468.9,3353.7,1606.4,3076.4,13384.8,3242.9,7312.5,5266.1,20409.8,5878.9,21887.5,7033.4,41589.0,11669.9,12705.1,2007.4,7015.9,9623.2,8556.9,21712.2,9375.0,9438.6,22239.1,15896.3,38076.6,11843.7,22864.2,36322.8,11363.7,6522.1,7109.3,12511.6,5079.7,8181.0,3707.0,6689.1,13642.9,9728.6,2517.0,7064.6,4670.4,48123.4,8324.4,11108.3,10297.3,11026.5,12591.4,2337.7,5367.7,9587.2,9714.8,45434.8,5423.2,6657.9,8318.3,6695.1,13127.5,6472.3,3124.0,13129.1,2048.2,2297.7,7672.8,10357.5,11209.7,15606.1,3029.6,10758.5,13692.4,38297.5,8416.4,6165.3,12358.1,22742.2,13968.8,9146.1,2641.2,10012.8,4582.1,6939.1,10218.3,9160.3,11944.2,4070.7,4788.9,3544.5,6839.5,12626.5,6320.8,34288.4,20951.9,13139.3,4500.0,12775.9,9819.1,11492.5,9744.8,14581.9,1616.3,12592.6,8728.2,20646.6,1992.1,6503.8,17783.7,8992.2,39559.9,7704.5,12019.5,8662.1,29272.4,11729.0,13523.1,3239.1,1608.0,5987.8,13058.1,46486.1,44638.2,5390.3,42531.1,14051.0,44558.2,7683.8,12951.3,34055.6,12318.8,17322.7,26258.7,36645.1,13232.0,47520.3,18759.2,15635.0,8975.0,11483.2,1797.7,43761.7,9409.4,11733.9,3921.4,11734.4,3173.5,2537.9,13782.2,11245.8,24167.7,49905.8,6178.6,13461.2,10902.4,9529.6,11956.6,14578.8,48430.4,12126.2,4788.8,5962.5,42908.9,3227.2,4361.0,2512.3,16154.7,23288.3,40305.0,11148.8,9032.5,25501.9,13459.3,5964.6,13406.2,6486.1,5500.4,5969.6,13357.8,9917.2,9494.4,1993.6,43436.7,9809.9,35246.3,11596.7,10751.6,12153.2,9560.2,6981.0,6733.5,7206.7,36672.0,12930.8,3897.7,9106.4,5041.5,44411.1,47179.9,10278.3,48768.0,25543.6,14369.0,13211.7,10773.4,13719.2,12754.2,14088.3,43119.4,10010.7,3133.2,13885.2,13910.4,14791.7,12860.3,7932.5,7032.8,10797.0,7483.7,2612.6,12948.9,10190.7,4905.2,6700.2,2404.8,8444.7,10527.9,11268.2,3048.7,2098.6,12080.9,6350.3,13598.7,3161.9,4097.5,12121.3,14832.2,9921.3,10135.6,4378.1,13859.4,13357.2,10067.4,36411.7,2175.8,18758.3,23410.6,38574.5,16388.9,13644.2,15934.1,43494.8,11637.5,8127.0,10191.9,1603.0,12829.1,11607.2,4810.7,6229.8,12939.5,3128.2,11357.5,11627.9,11555.2,9465.0,10369.7,2471.8,14345.1,2403.4,10657.8,10070.9,15179.2,11986.5,4451.1,13172.1,6059.2,9953.6,8705.2,5988.7,2384.9,20746.2,15566.8,5649.3,3377.8,9372.8,10835.5,19674.3,14631.3,28677.0,46360.5,46413.9,40852.1,4585.1,10354.4,11248.5,8665.4,3071.3,4534.6,6774.4,1399.2,6412.4,7674.7,12984.6,6040.6,14422.5,3809.6,7371.2,14248.2,4596.2,6838.6,38196.8,1921.4,13648.9,26653.0,8905.5,13529.0,12659.6,7514.1,6623.7,9009.3,5894.2,2907.5,2368.6,6942.8,12270.9,13037.2,13094.7,11496.1,9682.3,12063.8,38661.2,15830.0,12823.7,2414.0,20756.3,13343.4,13971.6,6168.3,2566.0,4133.0,3151.5,2222.4,10764.1,25550.2,28835.4,19033.6,3855.2,2683.3,2936.8,15901.1,11023.4,2454.7,11377.1,10658.3,6657.8,13736.6,1595.0,43926.3,12022.8,2359.1,13319.4,2995.6,12868.4,17503.4,3090.5,5923.4,9170.4,9973.0,13500.9,37040.2,9322.0,22846.3,32327.1,7895.6,8771.7,3750.9,4153.6,4546.4,11952.0,13270.2,4371.4,10840.5,1673.7,22282.8,12020.7,2696.4,10664.3,6693.8,6073.8,11678.4,6155.6,11807.8,7795.4,21990.9,2510.4,3996.5,10949.3,10456.8,2439.3,49286.3,14637.8,13524.8,6868.7,13941.4,8337.6,7438.0,10547.2,10088.4,10807.3,7831.1,3792.9,14084.8,50733.6,11834.0,24792.7,5357.2,12721.9,4774.1,48353.3,13329.1,5973.3,12610.9,12929.0,4993.4,5164.0,10624.5,5847.7,41521.3,2850.3,11119.9,12812.4,3487.3,10855.8,3271.2,3322.1,8869.8,9308.1,12439.3,47204.6,5327.3,3079.5,6822.1,15244.7,14382.4,13213.0,2852.8,41549.1,11066.6,4777.5,13449.6,8239.1,6299.3,1553.0,6652.0,4636.3,38240.9,14469.7,8040.6,12364.3,10334.5,3484.0,15912.9,8012.3,11015.5,9573.9,8053.6,9107.1,12677.4,2337.1,11032.7,11693.3,16067.5,17487.2,11131.8,5400.7,25782.6,6138.1,39822.4,10270.7,8062.9,3194.7,8455.2,2863.2,44511.9,13279.8,24153.8,35042.2,11929.6,4802.7,40962.5,10376.7,34807.6,12881.4,5647.4,8385.6,6414.3,11904.6,44996.4,11148.4,2717.9,5406.9,9258.2,10849.2,15021.7,3461.1,8745.5,21878.9,14254.3,7997.5,25104.1,13951.5,5643.3,9449.7,11819.1,8027.2,10147.4,2508.7,13885.9,11751.9,12089.8,10204.1,10603.1,13041.4,25546.5,4501.8,5509.2,11583.5,15469.0,8678.1,12859.1,7396.4,1902.3,26611.5,44133.4,10018.8,41847.6,45955.4,8443.3,6860.9,6188.0,6556.0,8363.0,47721.9,9231.1,13570.1,45945.5,12877.0,11807.8,2970.6,1099.4,41439.5,11289.1,6137.8,13097.2,9459.5,7928.3,9871.8,35403.0,3382.5,9431.4,3535.5,3720.1,4975.2,5278.0,13533.5,41517.4,12371.9,4745.7,2914.2,11815.5,11303.7,7364.5,10894.1,6692.5,45746.4,11625.3,8122.7,7721.0,2559.3,11665.9,10572.5,3434.8,3040.5,12207.4,11299.6,13523.9,12658.6,13253.5,12002.3,12540.0,12961.6,1733.6,11840.8,42288.5,8762.5,18019.2,3190.0,8893.7,20233.1,10898.3,5080.2,11684.4,14118.2,11587.6,42287.9,4422.5,36578.8,38552.5,10618.1,19287.4,44467.7,5425.2,10641.9,11681.1,6728.0,2191.5,9991.0,5088.1,20963.6,2933.5,14402.0,12808.9,6015.3,7158.8,9874.9,24426.1,7528.2,36744.5,5350.4,3469.7,19975.3,4859.5,10950.3,13171.8,9646.4,8629.1,14022.6,8907.8,14523.2,12212.7,10212.5,18398.6,9529.8,12153.6,9358.0,9728.5,7792.6,11476.2,18722.6,1897.4,11156.9,25417.1,6136.2,7713.8,13758.3,2763.9,7223.0,13803.4,7816.7,1699.8,4187.0,21723.1,9433.9,19442.8,5829.6,6657.1,12504.3,19583.9,8781.1,14346.0,2616.4,39126.2,2888.1,10041.3,9442.5,2715.5,1682.8,4517.8,11155.1,8042.1,12352.1,6339.4,7816.8,2684.3,4307.6,4279.1,24970.0,40326.5,9155.6,4123.7,2149.5,10115.5,13116.3,16280.5,44446.0,22537.1,41382.7,8119.4,13270.7,7390.4,6291.3,12905.6,7727.2,8911.6,6274.4,13283.1,8301.5,13546.9,2207.7,13160.3,36230.4,28102.7,11941.6,45385.3,11241.3,3804.6,4157.8,12092.0,39000.1,14674.4,43961.9,13614.8,25499.3,2478.1,42238.4,16755.8,4565.2,11377.0,47045.6,8702.0,13531.4,7995.2,9972.1,8199.1,2111.1,12271.4,13483.6,5244.1,9932.3,4805.1,8009.7,8448.2,11269.8,3894.5,10587.6,8859.3,7629.4,7884.5,4036.4,3835.5,3697.4,47659.3,5763.5,21075.4,27884.2,7623.8,2319.0,13038.5,29188.4,9224.6,11648.3,45258.5,14576.2,13288.5,20868.1,3022.0,2650.6,2789.1,10978.2,49312.3,5737.9,9991.8,12981.6,6006.5,6930.8,9680.2,15019.0,18027.2,3803.3,33868.8,15022.6,9136.8,7285.2,3919.7,23355.8,21472.4,13262.8,7294.3,13569.0,13447.1,6931.6,6614.6,7638.7,11890.6,3070.0,12464.9,13980.0,8397.7,4362.7,8044.9,11151.6,9066.2,6449.5,12474.9,10028.4,10649.4,2598.4,10528.1,1732.9,11137.0,3382.8,2227.6,13614.0,12390.6,8867.0,40934.7,8664.1,20224.6,12721.7,48591.1,6453.8,40199.3,21562.3,5900.0,42821.6,4023.2,42741.6,10834.9,3223.8,4672.5,14734.5,11264.6,12360.0,6380.6,25036.7,9331.1,4510.2,10451.2,12119.2,7240.0,3503.8,2508.3,3917.0,17729.6,9974.6,4235.7,11854.7,7035.1,12550.3,6689.7,20018.1,6061.2,5610.1,9256.2,10396.1,10154.9,6931.6,15659.5,4478.6,9231.4,11556.6,7538.8,17180.1,9885.3,9098.6,14387.2,8656.3,7196.8,18415.6,34595.1,2536.5,9029.5,10692.7,6191.7,6332.3,26137.6,4977.7,11731.1,9606.8,20178.8,15527.6,10630.4,7090.9,12961.2,3510.0,5212.9,13937.3,4385.9,10163.4,36298.4,43300.9,1991.3,10581.3,2802.2,16816.6,3223.5,10887.2,8739.5,23046.8,45409.4,6286.3,14128.3,13618.7,12651.3,37598.0,41254.3,3552.5,3214.7,21917.7,2512.3,33888.5,4474.7,12772.3,23385.1,9483.3,45338.6,4828.7,40436.0,10293.0,14740.7,10873.6,26257.2,5059.9,11934.3,9566.2,9389.5,3903.0,6304.4,3193.0,12491.5,49287.0,8207.3,6421.6,8584.7,10504.4,8261.1,14411.8,12389.6,41467.9,14417.2,3182.7,13674.5,13916.5,6355.3,10235.9,3397.9,35486.8,15473.1,2689.8,6165.3,7985.1,5680.5,15477.4,18784.1,12214.2,12519.3,11675.7,11199.6,43076.1,12996.2,4162.8,34767.2,12414.0,5164.7,45975.8,2688.4,12018.8,4544.9,18344.1,11741.9,5280.9,12474.4,6082.2,11782.4,10937.7,12061.2,3708.6,10479.7,13303.0,43649.8,25112.3,6755.6,3795.4,12107.7,11552.9,36558.4,39449.6,7291.5,33949.5,9989.3,47735.6,6152.7,42098.3,14565.1,10890.7,7993.2,5896.8,2040.1,10152.9,5139.0,12931.2,11604.0,5013.8,12766.9,9106.8,4681.4,5856.6,35261.6,10557.4,9664.9,10970.4,8601.2,11151.5,12783.6,44355.9,3293.1,11242.4,7799.8,3196.6,13644.3,42050.4,7576.1,12853.3,9474.5,40626.7,4969.2,3691.8,5932.3,9981.9,7366.1,5321.8,2947.2,9269.0,7425.4,12286.9,5862.9,5904.8,8403.8,17521.4,23575.1,12257.5,8572.6,6363.6,2773.7,25071.6,8123.9,4529.5,20614.7,10114.6,4154.3,3512.9,11386.6,18960.7,10483.3,37577.6,14339.3,23381.3,3077.9,7443.6,9573.4,14526.1,10524.5,6114.6,4675.5,33622.5,7828.1,8600.6,6169.6,8061.1,10918.7,3555.2,12155.4,18103.2,7088.4,13670.7,39300.1,21958.4,12886.2,7706.5,8100.7,2365.3,12111.3,5795.5,2624.0,7058.6,5640.4,42490.1,9630.5,6898.8,8536.5,9689.5,15325.3,9123.4,6835.8,8614.9,9381.1,11632.6,13031.5,45471.4,13883.0,13666.9,11778.2,10345.8,4572.3,15244.8,13236.0,9375.0,4760.8,48321.4,49112.6,5463.0,4819.4,2024.0,6438.2,10375.3,6996.9,2425.5,39006.8,19697.4,1563.3,16216.1,9517.2,6411.2,8242.7,12964.8,12578.4,13539.6,11781.0,6649.6,4589.5,8784.2,8959.3,12356.3,26412.4,11667.1,35153.7,2684.9,9668.6,4687.7,4861.7,10755.0,6744.2,18120.6,11517.0,4224.9,6473.0,24385.1,5634.0,10298.9,25843.3,14643.1,2445.6,47072.6,10519.3,5564.7,6803.7,38151.9,9300.4,9619.5,34337.9,2042.3,11069.6,12713.3,2049.2,2589.0,5575.5,6935.1,3346.6,39382.8,46673.0,4197.7,22507.6,23163.6,3598.5,17545.4,23007.5,34518.1,8252.5,9024.9,6505.6,6499.2,36358.1,19775.1,2707.6,2013.2,1869.0,9391.7,9242.1,7618.0,28039.4,13585.8,45104.0,5918.0,14134.3,9459.3,11126.7,5156.6,11385.6,13491.6,3036.2,12681.8,12577.3,3195.5,2083.5,2298.7,29411.2],"GBM":[20217.3,4212.9,6972.0,4735.3,4261.6,4367.8,9442.6,8367.7,7769.5,13628.8,4056.4,27844.8,3507.4,12749.0,39395.4,2795.0,13327.8,4120.9,10990.5,38788.4,15798.9,4691.0,3858.9,38363.0,7910.4,16826.0,14171.8,13709.4,6325.9,40649.0,36373.2,2941.5,6438.0,14612.9,37563.1,1700.6,17075.6,2201.0,42626.8,47068.8,4618.8,7497.6,9007.4,7450.0,6676.5,11079.9,7001.0,4722.5,15647.4,38640.6,3442.2,6864.4,24830.9,39078.1,8131.1,47982.3,13648.3,34272.7,24546.2,8805.2,10219.1,9386.1,14269.0,5637.1,17268.0,2842.0,19375.5,7417.0,7208.7,17669.3,18371.6,7672.5,12425.7,12723.0,10031.9,12536.0,5701.0,2950.0,3600.7,6817.8,5580.5,10022.9,39541.5,12610.9,40060.3,24443.5,42534.5,12515.7,9177.0,12997.0,2237.4,13169.5,28042.5,7431.2,46243.3,5499.2,13203.3,13430.9,24261.6,16689.7,6663.3,4113.9,3048.1,31326.0,7403.9,19084.5,4107.2,7121.3,4266.7,45459.3,13666.0,14224.6,3878.3,3325.3,14715.5,13426.2,12655.8,19182.3,9844.1,8323.3,8902.7,2522.8,3501.8,41135.2,11654.1,4696.1,18494.4,13144.8,16445.4,7149.0,14236.9,14943.3,13803.3,2582.5,3529.7,3049.8,2945.3,2787.2,13897.9,3679.8,6994.3,5397.7,19643.1,7894.2,20843.8,8079.9,41816.8,10992.3,14622.7,2943.9,6309.1,10902.3,8445.5,23209.0,7945.7,10084.1,22749.2,16903.6,38434.2,11153.3,24508.2,37320.2,11638.7,7499.0,8242.6,11456.0,4539.7,7410.7,5272.8,6623.2,13027.3,9573.1,2295.5,6305.4,5672.8,48390.9,7759.6,12536.3,9186.0,9001.8,11593.9,4245.1,4130.2,8933.2,9822.2,43001.3,7149.6,5769.0,6845.6,7387.8,14147.1,5190.2,3152.9,13244.1,3013.3,2151.3,5884.0,9200.3,10827.5,14777.3,3192.9,10805.6,14982.2,38210.2,8323.0,5432.8,16482.2,23222.1,14055.6,8594.5,5824.2,9095.6,6627.4,6083.1,8560.1,6764.8,12495.8,4889.8,5433.1,3591.7,6355.9,12394.8,5203.6,37265.4,23466.2,14281.1,4884.0,11614.3,8120.5,11851.0,8839.8,15246.8,1219.8,14967.8,7859.2,19070.2,2536.7,6973.9,19549.7,9829.5,39687.5,6593.8,12510.1,8300.5,30416.7,11784.8,15538.0,3126.2,1651.1,5200.7,25325.1,45507.8,44572.9,5557.5,40698.5,14265.5,43722.2,5630.7,12006.8,34520.5,12040.0,17874.8,24734.4,37861.5,14178.5,44366.8,18446.3,15025.3,8788.1,11311.8,3661.6,41735.9,8803.1,11249.5,3928.7,11288.9,9358.6,2426.1,16276.3,9606.5,21797.3,48810.5,6053.5,13183.7,11532.8,8725.1,10877.4,15085.4,48590.3,14015.1,5730.5,6946.8,38754.7,3001.3,5438.6,2534.6,18404.6,24221.2,38948.9,11410.2,8408.0,23208.1,15120.3,7012.8,14535.2,7329.4,7267.5,5826.7,12152.9,8613.2,9972.4,2753.4,41534.7,9745.1,35222.8,12457.6,10762.3,12278.0,9017.7,6791.1,6730.8,8511.0,38255.9,12324.2,4973.0,7755.8,6537.4,45702.2,47493.8,12277.0,49206.4,24604.3,14123.6,12535.6,9144.3,14521.4,14044.1,16042.1,41752.1,9441.8,4576.6,14405.9,14132.1,15557.3,12966.3,7355.2,7407.6,9908.7,6535.7,3169.4,12218.5,9882.7,5019.1,6340.6,1578.5,9346.5,8969.6,10992.9,3212.5,2897.1,11429.4,5591.3,15233.5,3475.9,6830.9,11319.9,13800.4,8575.7,9781.8,5390.5,13572.5,11815.3,7665.2,35943.0,2109.1,18854.4,19688.2,39348.9,16705.0,15230.6,16784.0,44080.9,14476.1,6690.3,8965.3,2945.3,12739.9,11593.6,3496.3,7962.4,12461.9,3759.5,11609.8,11609.8,10255.8,7928.2,8749.6,1836.6,16258.1,2312.6,8315.2,9119.7,15878.0,11353.3,2842.8,15739.1,6456.4,10383.2,6621.6,5227.7,2301.9,21333.6,26426.0,6067.2,3101.7,9085.6,13804.3,18725.4,16607.0,27438.9,46289.1,46169.8,39039.6,4379.8,10313.6,9050.4,7619.3,3070.0,2896.0,7245.7,1214.8,6396.2,7362.0,14358.0,5908.6,20032.1,2333.2,6410.3,18038.6,3668.3,5747.8,38656.3,1817.1,14765.2,24892.8,8059.8,15910.9,12462.3,8139.3,5708.6,8517.7,5399.4,3366.6,3097.0,5892.5,13487.4,14445.0,12446.0,11524.4,8101.9,11997.5,36188.0,26279.0,12378.0,2442.6,20833.4,15165.6,14636.0,5848.1,4512.6,3845.0,5118.4,3656.1,9856.1,23012.4,29426.8,18036.5,4611.7,2845.2,3450.4,18813.6,11290.9,3392.8,9425.0,9769.5,5180.6,12803.7,2290.3,42299.7,12907.5,3010.5,14218.8,3108.1,13151.1,17122.1,3169.4,6079.8,8774.3,9600.6,14031.2,38416.3,9061.9,23600.3,33744.8,6401.4,7822.4,4735.4,5976.7,4678.7,12084.4,13297.3,4372.2,9993.0,2192.7,20488.9,12433.1,3281.0,10197.5,5324.3,4515.6,10253.1,4732.3,10636.2,6253.5,21716.1,3931.1,6393.4,9853.7,9507.0,2083.8,48114.3,14355.3,17591.6,4779.3,14062.6,6386.1,7246.1,9230.2,9175.3,11962.8,8125.9,5613.6,14523.0,48159.4,12505.4,24124.4,5946.2,12174.9,4711.2,46352.8,14606.9,3983.9,12928.8,14671.5,4824.2,5861.7,9495.5,4734.6,39289.4,3536.9,9198.4,12966.5,2329.0,10243.8,5675.8,3790.1,7419.1,8293.0,10205.9,45159.7,4110.4,3762.1,5573.5,15073.1,14097.6,12908.1,2614.4,41097.2,12270.1,5050.1,15379.6,7154.2,5927.4,744.2,6502.6,4372.4,35664.6,15044.6,6845.0,11336.7,9106.9,6412.1,17194.5,6236.6,9868.3,7895.5,7107.8,8107.6,14506.6,2806.6,10274.3,12426.7,17348.5,18979.7,11762.6,4801.4,26000.9,7152.0,39842.0,9618.2,6076.0,3851.1,6533.4,3522.8,43217.6,12130.8,23971.7,34699.7,11299.2,4110.0,38460.9,9046.8,34263.9,13770.8,4479.6,7423.9,4834.0,12612.3,45287.7,13317.2,3156.6,4484.7,8304.7,9654.8,16064.4,4583.8,8554.9,20698.1,18229.3,6842.4,24934.1,14739.7,6887.6,17695.5,10985.0,6651.4,8063.5,3843.6,12807.5,10173.0,13240.2,10160.9,10059.6,13826.1,24871.0,3689.9,7127.9,10508.5,13964.3,7204.1,12432.0,6364.0,2921.7,28009.0,44081.3,9672.8,39437.7,45749.2,7047.4,6947.4,4704.7,6558.4,6374.6,43700.3,8172.5,14271.3,45534.8,14326.1,11209.3,3175.6,617.6,40071.7,12001.9,6162.6,14126.1,7473.2,7836.3,8459.1,35537.9,1929.8,9901.7,4721.9,4097.8,4862.7,4241.7,13438.2,40455.6,11956.2,5886.3,2142.6,11617.3,14137.0,6759.6,11126.3,6421.2,46048.6,11406.3,7288.1,6181.5,3849.7,13551.3,10025.9,3866.5,3618.6,13637.4,11159.1,16253.7,12386.5,12533.3,10803.6,13591.0,15590.1,2278.8,11824.5,40416.6,7220.0,18798.6,3459.0,7855.7,19766.0,9930.2,6065.1,11099.5,14556.5,11337.0,41933.9,5124.7,35590.6,38999.6,10099.7,17278.3,45225.8,4347.7,10217.2,11076.5,8097.1,3251.3,10283.5,4446.4,23554.0,2815.9,15439.7,13422.8,6201.2,7201.3,8315.1,24942.1,8075.5,42949.9,6146.8,4837.0,19860.8,3831.6,10210.8,12739.3,8952.2,6659.1,14047.7,6955.3,16462.5,13029.1,9609.7,19674.6,8395.0,11529.2,8616.2,9547.9,6996.5,12120.2,17645.1,3075.1,10474.5,26655.1,5654.3,9828.6,15041.1,3344.5,7262.4,14716.9,6377.1,4268.1,3670.2,22906.3,8397.8,20842.7,5541.4,6359.5,12038.9,20470.4,7301.2,14498.1,2208.7,39398.6,3288.3,9743.8,7334.0,4072.2,4376.2,4542.4,9101.5,13015.4,12849.9,6996.9,7858.4,2702.5,4918.0,6164.4,23974.4,39289.1,8623.9,8063.9,2593.4,9607.3,13755.7,16762.8,44792.6,20628.7,38890.9,7280.4,14982.8,5373.0,7080.1,11874.5,6706.4,7790.4,5117.8,12130.8,7180.3,14355.7,2302.2,13563.2,36373.1,26987.8,12404.9,46001.4,10397.2,3982.5,5935.4,12490.9,37545.9,16693.8,43144.3,14655.8,24495.5,3103.5,42106.1,16876.4,5264.7,11070.0,41784.4,8445.3,14215.8,5156.1,9639.0,7330.5,2993.9,11783.5,14533.0,7310.7,10172.7,5338.8,7135.6,8159.9,9607.8,4711.2,11098.0,8437.5,6790.4,7130.4,4701.9,5577.9,2722.2,45563.1,6373.8,21300.4,26701.0,5794.4,1533.7,13742.6,28980.5,8298.7,12595.4,44565.9,14562.8,15607.4,21342.4,3905.4,2628.2,2694.9,10559.0,47010.8,6103.7,9624.3,15222.7,6618.8,7011.6,9021.1,15926.6,17919.9,4247.3,34455.0,16221.4,9682.9,7388.0,4168.2,24550.0,22014.8,14625.4,6263.5,14958.5,14739.0,4973.2,5639.1,8017.4,11220.7,5194.3,11398.3,14170.2,7001.8,3638.2,7329.7,9173.9,8894.1,6757.0,15061.3,9377.1,9389.3,4778.3,11842.7,3033.9,10354.5,3647.5,2326.6,14224.3,12832.4,7440.7,39077.2,6708.4,20938.3,10952.1,47146.7,5586.4,38592.4,20663.7,5330.8,44419.0,4686.9,43449.1,10899.7,4281.4,4311.1,15156.1,9384.0,15118.7,7285.9,23783.3,9018.7,5976.7,8154.5,11487.0,5339.4,2195.1,2139.7,12490.4,18173.1,10037.4,4666.4,10281.4,5448.5,12675.6,4158.1,18485.2,6297.7,9495.2,8572.3,9673.2,9010.9,5557.8,16581.0,3874.4,8391.4,10712.7,6942.6,18864.8,8063.5,7251.3,15542.6,8608.7,5304.7,18258.5,35757.4,2710.3,9211.1,8986.8,7273.1,7201.6,25152.3,5341.5,11557.1,9620.8,21658.0,16451.2,10932.0,8823.3,14012.0,4998.4,5958.4,14238.2,5425.3,9168.4,35732.8,42682.7,3965.4,9890.5,2523.6,18726.4,2746.3,10907.7,7012.9,24351.4,46104.3,4639.1,14977.8,13566.4,12544.1,38081.5,42114.4,2806.0,5344.6,20959.6,2534.6,33949.9,3670.0,17635.5,23436.1,9228.0,44003.2,5353.2,40048.9,9799.0,14596.3,10567.4,26390.6,3474.3,12328.1,10322.6,8668.2,3946.2,6195.7,3437.4,13692.2,47547.7,8117.2,6834.4,7086.0,10902.2,6957.6,13528.8,13803.3,40162.0,15246.2,3284.0,13151.9,13589.3,4752.0,10208.1,2144.8,35824.8,17609.0,3876.1,5359.0,5346.9,4822.3,16884.9,18567.5,12120.2,11905.1,12660.9,10915.9,43741.0,12229.2,5203.7,35621.6,12495.4,7916.1,45682.2,2401.4,12534.9,4900.7,17989.3,12563.2,6017.2,13336.0,3936.8,12544.5,10892.5,11720.6,3301.0,8464.4,13438.2,42153.9,24211.2,7229.7,4205.9,13719.5,12350.1,34735.1,39207.3,5953.5,34846.9,9363.1,48143.3,6194.7,39820.6,15126.3,12595.4,8070.8,4985.6,2159.4,8196.4,3794.5,12021.5,12470.4,4043.6,12577.0,8963.5,4469.7,6238.0,35012.3,10779.3,6677.6,12232.6,8408.6,11692.4,13707.5,46103.5,3192.9,11111.6,6625.8,3905.7,13899.2,41610.6,7412.6,11210.6,7659.0,38996.6,6059.9,3659.2,4375.4,9143.5,7886.5,4180.2,4528.5,8092.9,5423.2,12335.8,6058.3,4789.1,6776.2,17594.1,24395.2,12537.5,7530.3,6859.5,3314.9,25348.9,8479.4,4507.7,20742.3,8693.1,4945.4,2794.2,11076.0,18404.1,9448.2,41695.1,13784.7,23117.6,4185.6,7410.7,7264.3,13829.5,11664.0,4240.5,6666.4,20067.5,6795.7,7542.2,6199.2,7840.2,10018.8,3282.0,11546.6,19600.7,6530.0,14159.8,38686.0,19589.0,15994.8,6728.0,6647.5,1927.4,13334.7,6194.7,1918.1,5770.2,6768.8,42576.5,8015.4,5667.1,9141.3,10380.2,16447.1,7459.8,6208.0,6424.3,7809.7,13889.2,12231.2,43864.8,16316.0,13719.6,12249.6,9718.9,4323.3,14046.3,12182.5,8710.0,5033.7,48692.6,47859.8,5381.8,4449.9,3161.4,5936.1,8823.7,8263.2,2090.4,38069.5,19932.8,744.2,19045.2,7424.2,5326.5,6972.6,12696.7,13020.8,14307.5,12447.3,3995.8,4177.0,7688.7,8253.1,12421.1,27110.9,12670.8,35043.3,3419.3,10238.6,5345.5,4437.8,8396.1,7302.4,18773.6,12249.6,3886.7,5012.6,22499.7,9392.8,10125.4,25882.1,15368.7,3785.8,48461.0,10031.6,3313.3,5948.1,37882.8,9490.7,7124.6,37265.4,2221.1,9667.6,12595.4,3002.7,2093.3,6478.4,8172.6,4370.5,40329.0,45991.2,3874.4,24113.0,23533.6,4212.7,17114.2,20537.9,34198.5,6939.4,7418.3,4760.9,4677.9,35397.9,18534.9,3860.1,1597.2,1422.5,8574.4,7977.1,7177.6,27828.3,14467.6,42227.6,5412.9,14455.2,6582.3,10916.3,6382.5,12057.5,14726.7,2796.5,12633.3,12982.7,3886.6,2821.1,2007.0,28871.9]},"m":{"Linear":{"MAE":4206.128180501644,"MAE_smoker":8660.302098101016,"MAE_top10":8411.993849879089,"bias_top10":-8411.993849879089,"R2":0.7470328676484997,"cost_3to1":8406.907611572704,"under_rate":0.3709798055347794},"Linear + interaction":{"MAE":2357.9774794637665,"MAE_smoker":1736.9273270462647,"MAE_top10":2730.9569063848817,"bias_top10":-1110.680589066802,"R2":0.8658977610823071,"cost_3to1":4714.428063963561,"under_rate":0.12715033657442035},"GBM":{"MAE":2447.905601281571,"MAE_smoker":2107.2897014900664,"MAE_top10":2877.022979467884,"bias_top10":-1604.3834163031136,"R2":0.8603600766111964,"cost_3to1":4908.837980415016,"under_rate":0.19296933433059088}}};
+
+
+let FX='Linear';
+function drawFX(){const y=D.y,p=D.p[FX],s=D.s;const cv=document.getElementById('fx-cv');
+ plot(cv,{h:300,x:[0,66000],y:[-6000,66000],xt:[0,20000,40000,60000],yt:[0,20000,40000,60000],xf:kfmt,yf:kfmt,xl:'실제',yl:'검증 예측',draw:(c,X,Y)=>{
+  line(c,[[X(0),Y(0)],[X(66000),Y(66000)]],cssv('--ink'),1,[4,4]);
+  for(let i=0;i<y.length;i++)dot(c,X(y[i]),Y(p[i]),2.4,s[i]?cssv('--c-claim'):cssv('--c-no'),.6)}});
+ const m=D.m[FX],b=D.m['Linear'];const row=(l,k,f)=>`<tr><td>${l}</td><td class="r">${f(b[k])}</td><td class="r"><b>${f(m[k])}</b></td></tr>`;
+ document.getElementById('fx-tbl').innerHTML='<thead><tr><th>지표</th><th class="r">개선 전 (선형)</th><th class="r">지금</th></tr></thead><tbody>'+
+  row('MAE','MAE',fmtD)+row('흡연자 MAE','MAE_smoker',fmtD)+row('고액 10% MAE','MAE_top10',fmtD)+row('고액 10% 편향','bias_top10',fmtD)+row('R²','R2',v=>v.toFixed(3))+row('3 : 1 비용','cost_3to1',fmtD)+'</tbody>';
+ document.getElementById('fx-cap').textContent={Linear:'개선 전: 흡연자(주황) 고액이 대각선 아래로 크게 처집니다. 직선 하나로는 흡연 + 비만의 큰 금액을 못 따라갑니다.',
+  'Linear + interaction':'개선 후: 흡연자 점들이 대각선으로 붙었습니다. 열 세 개만 추가했고 행은 그대로입니다.',GBM:'비교: 그래디언트 부스팅은 상호작용을 스스로 찾습니다. 상호작용 선형과 점수가 비슷합니다.'}[FX];
+ robo('robo-23','thinking');setTimeout(()=>robo('robo-23',FX==='Linear'?'wrong':'success'),300)}
+document.querySelectorAll('[data-fx]').forEach(b=>b.addEventListener('click',()=>{FX=b.dataset.fx;document.querySelectorAll('[data-fx]').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));drawFX()}));
+drawFX();onTheme(drawFX);
+</script>
+</body>
+</html>

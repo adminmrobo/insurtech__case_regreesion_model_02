@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<script>
+(function(){var KEY='it4_lang',AVAILABLE=['ko'],LANGS=['ko','en','zh','ja','uz','ru'];
+var cur=document.documentElement.lang||'ko';cur=cur.slice(0,2);
+function root(){var p=location.pathname;var dir=p.replace(/[^\/]*$/,'');if(cur!=='ko'){dir=dir.replace(/[^\/]+\/$/,'')}return dir}
+function file(){var f=location.pathname.split('/').pop();if(!f)f='index.html';if(!/\.html?$/.test(f))f+='.html';return f}
+function url(l){return root()+(l==='ko'?'':l+'/')+file()+location.search.replace(/[?&]lang=[^&]*/,'').replace(/^&/,'?')+location.hash}
+function exists(u,cb){if(location.protocol==='file:'){cb(true);return}try{fetch(u,{method:'HEAD'}).then(function(r){cb(!(r.status===404||r.status===410))},function(){cb(true)})}catch(e){cb(true)}}
+function save(l){try{localStorage.setItem(KEY,l)}catch(e){}}
+function drop(){try{localStorage.removeItem(KEY)}catch(e){}}
+window.itSetLang=function(l,manual){if(l===cur)return;
+ if(AVAILABLE.indexOf(l)<0){if(manual){var n=document.getElementById('lang-note');if(n){n.hidden=false;n.textContent='이 언어판은 아직 준비 중입니다 ('+l+'). 한국어판을 보여 드립니다.'}}else{drop()}return}
+ var u=url(l);exists(u,function(ok){if(ok){if(manual)save(l);location.href=u}else{drop();if(manual){var n=document.getElementById('lang-note');if(n){n.hidden=false;n.textContent='언어판 파일을 찾지 못했습니다: '+u}}}})};
+var q=(location.search.match(/[?&]lang=([a-z]{2})/)||[])[1];
+if(q&&LANGS.indexOf(q)>=0){save(q);if(q!==cur)itSetLang(q,true);return}
+var s=null;try{s=localStorage.getItem(KEY)}catch(e){}
+if(s&&s!==cur){itSetLang(s,false);return}
+if(!s){var b=(navigator.language||'ko').slice(0,2);if(b!==cur&&AVAILABLE.indexOf(b)>=0)itSetLang(b,false)}
+})();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>교육자용 정답 | 인슈어테크 #4 실전</title>
+<meta name="description" content="AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전 교육자용 정답과 강의 멘트">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Silkscreen&display=swap">
+<style>
+.say .av:has(img){background:#fff}
+.say .av img{display:block}
+img.scene{display:block;width:100%;max-width:720px;height:auto;aspect-ratio:9/5;object-fit:cover;border-radius:var(--r)}
+img.keyvis{display:block;width:100%;height:auto;aspect-ratio:1100/320;object-fit:cover;border-radius:var(--r)}
+img.pic{display:block;width:100%;height:auto;aspect-ratio:480/440;object-fit:cover;border-radius:6px}
+.crew .cf{background:#fff}
+.crew .cf img{width:100%;height:100%;object-fit:contain}
+.crew .moods button img{width:36px;height:36px;border-radius:7px;display:block}
+/* 레이아웃: 보상 센터 연구 노트 — 상단 바 · 히어로(그림 자리) · 육각 번호 섹션 · 카드형 실습 */
+:root{
+  --bg:#f6f5fb; --surface:#ffffff; --sunken:#eeecf7; --ink:#1d1a2e; --muted:#5d5873; --line:#dcd8ea;
+  --accent:#5b47c9; --accent-ink:#ffffff; --accent-soft:#ece8ff;
+  --core:#6a4fd8; --data:#c2417a; --seq:#13857f;
+  --c-no:#2f86c9; --c-claim:#d9730d; --c-3:#7b61d9; --c-4:#1f9e78;
+  --risk:#b4471b; --risk-bg:#fdeee6; --safe:#1f7a5c; --safe-bg:#e5f4ee; --warn:#9a620e; --warn-bg:#fbf1df;
+  --grid:#e6e3f0;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --f-pixel:"Silkscreen","IBM Plex Mono",monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12111a; --surface:#1b1a26; --sunken:#0e0d15; --ink:#ece9f7; --muted:#a29dba; --line:#2e2b40;
+  --accent:#a998ff; --accent-ink:#14121f; --accent-soft:#2a2547;
+  --core:#a48cf0; --data:#f07aaa; --seq:#4cc3b9;
+  --c-no:#3f8fd2; --c-claim:#d8742a; --c-3:#8a74e0; --c-4:#26a17c;
+  --risk:#f08a5d; --risk-bg:#3a1f16; --safe:#5fcf9f; --safe-bg:#14302a; --warn:#e3aa52; --warn-bg:#33270f;
+  --grid:#2a2738; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --grid:#2a2738; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.7;word-break:keep-all;overflow-wrap:break-word}
+a{color:var(--accent)}
+h1,h2,h3{line-height:1.3;text-wrap:balance;margin:0}
+p{margin:0}
+code,pre,.mono{font-family:var(--f-mono)}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:20px}
+nav.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding-block:8px}
+nav.top .brand{font-weight:700;text-decoration:none;color:var(--ink);white-space:nowrap}
+nav.top .brand b{font-family:var(--f-pixel);font-weight:400;color:var(--accent);margin-left:4px}
+nav.top .links{display:flex;gap:2px 12px;flex-wrap:wrap;font-size:.86rem;flex:1;min-width:0}
+nav.top .links a{color:var(--muted);text-decoration:none}
+nav.top .links a:hover{color:var(--ink)}
+nav.top select{width:auto;font:inherit;font-size:.82rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+header.hero{padding-block:28px 20px}
+.hero-grid{display:grid;gap:18px}
+.series{display:flex;flex-wrap:wrap;gap:6px}
+.series a{font-size:.78rem;text-decoration:none;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 10px;background:var(--surface)}
+.series a.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.kicker{font-family:var(--f-pixel);font-size:.82rem;color:var(--accent);letter-spacing:.04em}
+h1{font-size:clamp(1.7rem,4.2vw,2.5rem);font-weight:700;letter-spacing:-.015em}
+.lead{font-size:1.06rem;color:var(--muted);max-width:68ch}
+.byline{font-size:.84rem;color:var(--muted)}
+.guide{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted)}
+.guide span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+.chat{display:grid;gap:10px;max-width:760px}
+.say{display:flex;gap:12px;align-items:flex-start}
+.say .av{flex:0 0 52px;height:52px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:1.05rem;color:var(--accent-ink);background:var(--avc,var(--accent));position:relative;overflow:hidden}
+.say .av img{width:100%;height:100%;object-fit:cover;object-position:50% 18%}
+.say .av small{position:absolute;bottom:2px;left:0;right:0;font-size:.55rem;font-weight:500;text-align:center;opacity:.85}
+.say .sbub{background:var(--surface);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:8px 14px;min-width:0}
+.say .sbub b{font-size:.8rem;color:var(--muted);display:block}
+.say .sbub ul{margin:4px 0 0;padding-left:1.2em}
+.npc{display:inline-block;margin-left:6px;font-family:var(--f-pixel);font-size:.62rem;font-weight:400;letter-spacing:.06em;color:#3a2a00;background:#f2c94c;border:1px solid #b8901a;border-radius:3px;padding:0 5px;vertical-align:1px}
+.bomi{--avc:#d9730d}.actuary{--avc:#5b47c9}.fly{--avc:#13857f}.robo{--avc:#2f86c9}
+section.part{padding-block:34px 10px;border-top:1px solid var(--line);margin-top:26px}
+.part-head{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:center;margin-bottom:16px}
+.hex{width:44px;height:50px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:var(--kc,var(--accent));color:#fff;display:grid;place-items:center;font-family:var(--f-pixel);font-size:1.05rem;grid-row:span 2}
+.part-head h2{font-size:1.4rem}
+.part-head h2 span.en{font-family:var(--f-pixel);font-weight:400;font-size:.72rem;color:var(--muted);margin-left:8px;letter-spacing:.03em}
+.part-head p{color:var(--muted);font-size:.94rem}
+.body{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.body>p,.body>ul,.body>ol{max-width:72ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:grid;gap:12px;min-width:0}
+.card h3{font-size:1.02rem}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:.76rem;color:var(--muted);font-weight:600;letter-spacing:.02em;white-space:nowrap}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+tr.hl td{background:var(--accent-soft);font-weight:600}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit}
+.btn{text-decoration:none;display:inline-block;font-size:.9rem;font-weight:600;border-radius:8px;padding:7px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn:hover{border-color:var(--accent)}
+.btn[aria-pressed="true"],.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.small{font-size:.8rem;padding:3px 10px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dial{display:grid;gap:4px;min-width:0;align-content:start}
+.dial label{font-size:.86rem;font-weight:500;display:flex;justify-content:space-between;gap:8px}
+.dial label output{font-family:var(--f-mono);color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select,input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
+.canvas-box{position:relative;min-width:0}
+.canvas-box canvas{width:100%;display:block;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.cap{font-size:.86rem;color:var(--muted)}
+.cap b{color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;background:var(--c)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.76rem;padding:4px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-120%);z-index:5}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:8px}
+.stat>div{background:var(--sunken);border-radius:6px;padding:8px 12px;display:grid}
+.stat .l{font-size:.74rem;color:var(--muted)}
+.stat .v{font-size:1.25rem;font-weight:600;font-variant-numeric:tabular-nums}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:6.5em 1fr 4.2em;gap:8px;align-items:center;font-size:.84rem}
+.bar .track{position:relative;height:16px;background:var(--sunken);border-radius:4px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:var(--c,var(--accent));transition:width .25s}
+.bar .base{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.bar .v{font-family:var(--f-mono);text-align:right}
+@media (prefers-reduced-motion:reduce){.bar .fill{transition:none}}
+.cm{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;max-width:440px;font-variant-numeric:tabular-nums}
+.cm .h{font-size:.76rem;color:var(--muted);font-weight:600;display:flex;align-items:end;padding:2px 4px}
+.cm .rh{align-items:center}
+.cm .c{border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:grid;background:var(--surface)}
+.cm .c b{font-size:1.15rem}
+.cm .c span{font-size:.74rem;color:var(--muted)}
+.cm .c.ok{background:var(--safe-bg);border-color:transparent}
+.cm .c.bad{background:var(--risk-bg);border:2px solid var(--risk)}
+.cm .c.bad span{color:var(--risk);font-weight:600}
+.pill{display:inline-block;font-size:.74rem;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.pill.risk{background:var(--risk-bg);color:var(--risk)}.pill.safe{background:var(--safe-bg);color:var(--safe)}.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.pass{background:var(--safe-bg);color:var(--safe)}.pill.fail{background:var(--risk-bg);color:var(--risk)}
+.note{border-left:3px solid var(--warn);background:var(--warn-bg);padding:8px 14px;border-radius:0 6px 6px 0;font-size:.9rem}
+.note.info{border-color:var(--accent);background:var(--accent-soft)}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;display:grid;gap:10px}
+.q .qt{font-weight:600}
+.q .opts{display:grid;gap:6px}
+.q .opts button{text-align:left;font-size:.92rem;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer}
+.q .opts button.right{border-color:var(--safe);background:var(--safe-bg)}
+.q .opts button.wrong{border-color:var(--risk);background:var(--risk-bg)}
+.q .fb{font-size:.9rem}
+.codebox{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.codebox .tabs{display:flex;flex-wrap:wrap;gap:2px;border-bottom:1px solid var(--line);background:var(--sunken);padding:6px 6px 0}
+.codebox .tabs button{border:0;background:none;padding:6px 12px;border-radius:6px 6px 0 0;cursor:pointer;color:var(--muted);font-size:.84rem;font-family:var(--f-mono)}
+.codebox .tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);font-weight:500}
+.codebox .tools{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);align-items:center}
+.codebox .tools span{font-size:.78rem;color:var(--muted);flex:1;min-width:12em}
+.codebox pre{margin:0;padding:14px 16px;overflow:auto;max-height:440px;font-size:.8rem;line-height:1.55;white-space:pre}
+details.run{border:1px solid var(--line);border-radius:var(--r);background:var(--sunken)}
+details.run summary{cursor:pointer;padding:8px 14px;font-size:.88rem;font-weight:500}
+details.run pre{margin:0;padding:10px 16px 14px;overflow:auto;font-size:.78rem;line-height:1.5}
+.gloss{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
+.gloss div{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px}
+.gloss dt{font-weight:600}.gloss dd{margin:2px 0 0;font-size:.88rem;color:var(--muted)}
+.gloss dd i{font-style:normal;color:var(--ink)}
+.prompt pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--sunken);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;font-size:.8rem;max-height:360px;overflow:auto;margin:0}
+.teach-link{display:inline-block;font-weight:600;text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:8px 14px}
+section.outro{margin-top:40px;padding-block:30px;border-top:1px solid var(--line)}
+.outro .scene{width:100%;max-width:720px;aspect-ratio:720/400;border-radius:var(--r)}
+.placeholder{display:grid;place-items:center;text-align:center;background:repeating-linear-gradient(135deg,var(--sunken) 0 12px,var(--surface) 12px 24px);border:1px dashed var(--line);color:var(--muted);font-size:.82rem;padding:10px}
+.nav-eps{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
+footer{border-top:1px solid var(--line);margin-top:30px;padding-block:22px 40px;font-size:.82rem;color:var(--muted)}
+footer .wrap{display:grid;gap:8px}
+.robo-w{align-items:center}
+.robo-w .av{flex-basis:64px;height:64px;font-size:1.4rem}
+.robo-w[data-st="wrong"] .av{--avc:var(--risk)}
+.robo-w[data-st="success"] .av{--avc:var(--safe)}
+.robo-w[data-st="confused"] .av{--avc:var(--warn)}
+.player{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.player input[type=range]{flex:1;min-width:140px}
+.stamp{justify-self:start;border:3px double currentColor;border-radius:4px;padding:6px 16px;font-weight:700;font-size:1.35rem;letter-spacing:.04em;transform:rotate(-2deg)}
+.stamp.risk{color:var(--risk)}.stamp.safe{color:var(--safe)}.stamp.reject{color:var(--warn)}
+@media (max-width:560px){body{font-size:15px}.part-head h2{font-size:1.2rem}.say .av{flex-basis:44px;height:44px}}
+.tagx{display:inline-block;font-size:.72rem;font-weight:600;background:var(--sunken);border-radius:4px;padding:0 6px;margin-right:4px;color:var(--muted)}
+.crewgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:14px}
+.crew{align-content:start}
+.crew .faces{position:relative;aspect-ratio:4/3;width:100%;overflow:hidden;border-radius:var(--r)}
+.crew .cf{position:absolute;inset:0;display:none;border-radius:var(--r);flex-direction:column;gap:4px}
+.crew .cf.on{display:grid;align-content:center}
+.crew .moods{display:flex;flex-wrap:wrap;gap:6px}
+.crew .moods button{width:44px;height:44px;border-radius:10px;border:2px solid var(--line);background:var(--sunken);cursor:pointer;display:grid;place-items:center;padding:0;line-height:1.1;color:var(--avc)}
+.crew .moods button small{font-size:.58rem;color:var(--muted)}
+.crew .moods button[aria-pressed="true"]{border-color:var(--avc)}
+.cline{font-weight:500}
+.keyvis{width:100%;aspect-ratio:1100/320;border-radius:var(--r)}
+.stops{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:14px}
+.stop{border-top:4px solid var(--kc)}
+.stop .pic{aspect-ratio:480/440;border-radius:6px}
+.stop .no{font-family:var(--f-pixel);color:var(--kc)}
+.bigq{font-size:1.15rem;font-weight:600;border-left:4px solid var(--accent);padding:6px 14px;background:var(--accent-soft);border-radius:0 8px 8px 0;max-width:72ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:grid;gap:12px;min-width:0;align-content:start}
+.task{border:1px solid var(--line);border-left:4px solid var(--data);background:var(--surface);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;display:grid;gap:8px}
+.task .tt{font-family:var(--f-pixel);font-size:.8rem;color:var(--data)}
+.task ul{margin:0;padding-left:1.2em}
+.answer{border:2px dashed var(--accent);border-radius:var(--r);padding:14px 18px;display:grid;gap:10px;background:var(--surface)}
+.answer .tt{font-weight:700;color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips span{font-size:.76rem;border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:var(--sunken)}
+.chips span.ban{border-color:var(--risk);color:var(--risk);background:var(--risk-bg)}
+
+:root{--c-under:var(--c-claim);--c-over:var(--c-no)}
+.say .sbub p b,.say .sbub li b,.say .sbub p strong{display:inline;font-size:inherit;color:inherit}
+.review{text-decoration:none;color:inherit;border-left:4px solid var(--seq)}
+.review:hover{border-color:var(--accent)}
+.scene.placeholder{width:100%;max-width:720px;aspect-ratio:9/5;border-radius:var(--r)}
+.keyvis.placeholder{width:100%;aspect-ratio:1100/320;border-radius:var(--r)}
+.pic.placeholder{width:100%;aspect-ratio:720/660;border-radius:6px}
+.otherpart{font-size:.78rem;text-decoration:none;border:1px dashed var(--seq);color:var(--seq);border-radius:999px;padding:2px 10px;background:var(--surface)}
+.box{border:1px solid var(--seq);background:var(--surface);border-radius:var(--r);padding:14px 18px;display:grid;gap:8px}
+.box .tt{font-family:var(--f-pixel);font-size:.78rem;color:var(--seq)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.form label{display:grid;gap:3px;font-size:.84rem;font-weight:500}
+.path{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.86rem}
+.path span{border:1px solid var(--line);border-radius:6px;padding:2px 8px;background:var(--sunken)}
+.path span.leaf{background:var(--accent-soft);border-color:var(--accent);font-weight:600}
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:18px;text-align:center;color:var(--muted);font-size:.9rem}
+.drop.on{border-color:var(--accent);background:var(--accent-soft)}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums}
+.mono{overflow-wrap:anywhere}
+@media (max-width:640px){nav.top .links{order:3;flex-basis:100%}}
+td.r.under{color:var(--c-under);font-weight:600}td.r.over{color:var(--c-over)}
+
+</style>
+</head>
+<body>
+<nav class="top"><div class="wrap"><a class="brand" href="index.html">인슈어테크 #4 실전</a><div class="links"><a href="index.html">처음 화면</a><a href="#a1">1편</a><a href="#a2">2편</a><a href="#a3">3편</a><a href="#a4">4편</a><a href="#a5">5편</a></div><a class="otherpart" href="https://adminmrobo.github.io/ai-biz-insurtech-03/">1부 개념편 →</a><select id="lang-sel" aria-label="언어 선택" onchange="itSetLang(this.value,true)"><option value="ko" selected>한국어</option><option value="en">English</option><option value="zh">中文</option><option value="ja">日本語</option><option value="uz">O'zbekcha</option><option value="ru">Русский</option></select></div></nav><header class="hero"><div class="wrap hero-grid"><p class="kicker">ANSWER KEY FOR EDUCATORS</p><h1>교육자용 정답</h1>
+<p class="lead">AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전 5편의 확인 문제 정답 · 채점 기준 · 강의 가이드라인 · 섹션별 강의 멘트입니다.</p>
+<ul><li>학습자는 먼저 각 편에서 직접 풀어 본 뒤 확인하세요.</li><li>강사는 배점과 멘트를 수업에 맞게 조정하세요. 멘트는 섹션마다 도입 · 핵심 · 흔한 오해 · 정리 네 줄이며 그대로 읽어도 됩니다.</li><li>숫자는 Python 3 · scikit-learn 으로 정식 코드를 실제로 실행한 결과입니다(charges 10분위 층화 5-Fold, random_state=42). 버전에 따라 소수 셋째 자리가 조금 다를 수 있습니다.</li></ul></div></header><main><section class="part" id="a1"><div class="wrap"><div class="part-head" style="--kc:var(--core)"><div class="hex">1</div><h2>이상치를 지우지 않고 5-Fold로 성능 재기<span class="en">해설형</span></h2><p><a href="1_kfold_cv.html#author-sec">1편 페이지의 교육자 안내로 돌아가기</a></p></div><div class="body"><h3>확인 문제 (4개)</h3><div class="card"><h3>문제 1</h3><p>Q1. 회귀 문제에서 StratifiedKFold 를 쓰려면 무엇을 기준으로 층화해야 할까요?</p><ol><li><b>charges 를 10개 구간으로 나눈 번호(분위) ✔ 정답</b></li><li>charges 값 그 자체<br><span class=cap>오해: 연속값은 거의 모두 다른 값이라 ‘클래스’가 1,300개가 넘습니다. 구간으로 묶어야 층화할 수 있습니다.</span></li><li>층화는 분류에서만 쓸 수 있다<br><span class=cap>오해: 금액을 구간으로 나누면 회귀에서도 씁니다. 고액 고객이 fold 마다 고르게 들어갑니다.</span></li></ol><p><b>해설</b> 10분위 층화로 fold별 고액 고객 수가 26~27명으로 고릅니다. 섞기만 한 KFold 는 22~36명이었습니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 2</h3><p>Q2. log(charges) 로 학습한 선형 모델의 R² 가 로그 척도에서 0.763, 달러로 되돌리면 0.511 입니다. 보고서에 쓸 숫자는?</p><ol><li>0.763 — 더 좋은 숫자를 쓴다<br><span class=cap>오해: 로그 척도는 고액 고객의 큰 달러 오차를 작게 보이게 합니다. 과제는 달러로 되돌려 평가하라고 요구합니다.</span></li><li><b>0.511, 그리고 로그 척도 값과 왜 다른지 함께 ✔ 정답</b></li><li>두 숫자의 평균<br><span class=cap>오해: 서로 다른 척도의 숫자를 평균 내면 아무 뜻이 없습니다.</span></li></ol><p><b>해설</b> 같은 예측이라도 채점 척도가 다르면 R² 가 0.253 차이 납니다. 보험사가 내는 돈은 달러입니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 3</h3><p>Q3. 그래디언트 부스팅 원래 타깃은 MAE $2,448 · RMSE $4,501, 로그 타깃은 MAE $2,135 · RMSE $4,562 입니다. 올바른 해석은?</p><ol><li>로그 타깃이 모든 면에서 낫다<br><span class=cap>오해: RMSE 는 원래 타깃이 더 작습니다. 큰 오차는 로그 타깃 쪽에 더 많습니다.</span></li><li><b>로그 타깃은 보통 고객의 오차(MAE)를 줄이고, 원래 타깃은 큰 오차(RMSE)를 줄인다. 무엇을 중시할지 정하고 둘 다 보고한다 ✔ 정답</b></li><li>R² 가 비슷하니 아무거나 써도 된다<br><span class=cap>오해: R² 는 0.860 / 0.856 로 비슷하지만 MAE 와 RMSE 의 순위가 반대입니다. R² 하나로는 고를 수 없습니다.</span></li></ol><p><b>해설</b> exp(로그 예측)은 중앙값 쪽을 맞혀서 보통 고객에게 가깝고(MAE↓), 고액 고객은 적게 잡습니다(RMSE↑, 평균 편향은 2·3편).</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 4</h3><p>Q4. 1부 시험 데이터에서 그래디언트 부스팅의 MAE 는 $2,470, 2부 5-Fold 평균은 $2,448 ± $144 입니다. 왜 다를까요?</p><ol><li>둘 중 하나가 계산 실수다<br><span class=cap>오해: 학습한 사람과 채점한 사람이 다르니 숫자가 다른 것이 정상입니다.</span></li><li><b>1부는 268명을 한 번, 2부는 1,337명 전부를 다섯 번에 나눠 잰 평균이라서. 1부 값이 2부의 평균 ± 표준편차 근처면 정상 ✔ 정답</b></li><li>2부가 데이터를 늘렸기 때문<br><span class=cap>오해: 증강은 쓰지 않았습니다. 같은 1,337행을 다르게 나눴을 뿐입니다.</span></li></ol><p><b>해설</b> 1부 $2,470 는 2부 평균 ± 표준편차 $2,448 ± $144 안에 있습니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><h3>강의 멘트</h3><div class="cols"><div class="card"><h3>5조각 나누기</h3><p><span class="tagx">도입</span> 회귀에서도 층화를 할 수 있을까? 금액을 10구간으로 나눈 번호로 합니다.</p><p><span class="tagx">핵심</span> 핵심: 10분위 층화로 fold별 고액 고객이 26~27명으로 고르다(섞은 KFold 22~36명).</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “StratifiedKFold 는 분류 전용”. 구간 번호로 층화하면 회귀에도 쓴다.</p><p><span class="tagx">정리</span> 정리: 꼬리가 긴 금액일수록 층화가 fold 점수를 덜 흔들리게 한다.</p></div><div class="card"><h3>fold별 점수</h3><p><span class="tagx">도입</span> 과제가 요구하는 표를 화면에서 바로 만들어 봅니다.</p><p><span class="tagx">핵심</span> 핵심: 그래디언트 부스팅 MAE $2,448 ± $144, 기준선 $9,093 ± $171.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “가장 좋은 fold 하나를 보고하면 된다”. 평균 ± 표준편차를 쓴다.</p><p><span class="tagx">정리</span> 정리: 숫자가 아니라 범위를 보고한다.</p></div><div class="card"><h3>로그 R²</h3><p><span class="tagx">도입</span> 같은 예측, 두 개의 R². 어느 쪽을 믿어야 할까요?</p><p><span class="tagx">핵심</span> 핵심: 선형 로그 모델 R² 로그 척도 0.763 → 달러 0.511.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “R² 가 높으면 좋은 모델”. 척도와 지표를 밝혀야 한다.</p><p><span class="tagx">정리</span> 정리: 로그 타깃은 반드시 달러로 되돌려 평가하고, MAE · RMSE 와 함께.</p></div><div class="card"><h3>1부와 차이</h3><p><span class="tagx">도입</span> 1부의 $2,470 과 2부의 평균은 왜 다를까요?</p><p><span class="tagx">핵심</span> 핵심: 1부 = 268명 한 번, 2부 = 1,337명 다섯 번의 평균 ± 표준편차.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “숫자가 다르면 하나가 틀렸다”.</p><p><span class="tagx">정리</span> 정리: 1부 값이 2부 범위 근처면 정상. 둘이 다른 것은 정상입니다.</p></div></div></div></div></section><section class="part" id="a2"><div class="wrap"><div class="part-head" style="--kc:var(--core)"><div class="hex">2</div><h2>흡연자만, 비흡연자만, 고액만: 그룹별 오차<span class="en">해설형</span></h2><p><a href="2_group_errors.html#author-sec">2편 페이지의 교육자 안내로 돌아가기</a></p></div><div class="body"><h3>확인 문제 (4개)</h3><div class="card"><h3>문제 1</h3><p>Q1. 선형 회귀의 전체 MAE 는 $4,206 입니다. 흡연자만 MAE 는?</p><ol><li>전체와 같은 $4,206<br><span class=cap>오해: 전체 MAE 는 그룹 오차의 가중평균입니다. 그룹마다 다를 수 있습니다.</span></li><li><b>$8,660 — 비흡연자($3,058)의 약 2.8배 ✔ 정답</b></li><li>흡연자는 수가 적어 계산할 수 없다<br><span class=cap>오해: 274명이면 계산할 수 있습니다. 다만 범위(신뢰구간)를 함께 씁니다(3편).</span></li></ol><p><b>해설</b> 선형 회귀는 흡연 × 비만으로 생기는 큰 금액 차이를 직선 하나로 못 따라가서 흡연자에게 크게 틀립니다. 그래디언트 부스팅은 흡연자 $2,107, 비흡연자 $2,536 입니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 2</h3><p>Q2. 선형 회귀의 고액 상위 10% 평균 잔차가 $-8,412, 과소 추정 비율이 100% 입니다. 무슨 뜻일까요?</p><ol><li><b>고액 고객 134명 모두를 실제보다 적게 예측했고, 평균 $8,412 씩 모자란다 ✔ 정답</b></li><li>MAE 가 작으니 문제없다<br><span class=cap>오해: 고액 그룹 MAE 는 $8,412 로 전체의 두 배입니다. 그리고 방향이 전부 한쪽(적게)입니다.</span></li><li>고액 고객을 많이 잡았다<br><span class=cap>오해: 평균 잔차 = 예측 − 실제. 음수는 적게 잡았다는 뜻입니다.</span></li></ol><p><b>해설</b> MAE 는 방향을 숨깁니다. 평균 잔차와 과소 추정 비율을 함께 보면 한쪽으로 쏠린 오차가 보입니다. 그래디언트 부스팅의 고액 평균 잔차는 $-1,604 입니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 3</h3><p>Q3. 전체 MSE 와 그룹별 MSE 의 관계로 맞는 것은?</p><ol><li>전체 MSE = 흡연자 MSE + 비흡연자 MSE<br><span class=cap>오해: 그룹 비율을 곱하지 않고 더하면 전체보다 훨씬 커집니다.</span></li><li><b>전체 MSE = P(흡연) × 흡연자 MSE + P(비흡연) × 비흡연자 MSE ✔ 정답</b></li><li>둘은 관계가 없다<br><span class=cap>오해: 전체 기대값의 법칙으로 정확히 같습니다. 선형 회귀에서 좌변 37,072,616 = 우변 37,072,616.</span></li></ol><p><b>해설</b> 선형 회귀: 0.2049 × 84,131,037 + 0.7951 × 24,942,787 = 37,072,616. 흡연자가 전체 오차의 46.5%를 만듭니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 4</h3><p>Q4. ‘고액 상위 10%만 MAE’를 모델 성능으로 보고할 때 조심할 점은?</p><ol><li><b>실제 금액(정답)으로 고른 그룹이라, 새 가입자에게는 이 그룹을 미리 알 수 없다 ✔ 정답</b></li><li>고액 고객은 이상치이니 빼고 보고해야 한다<br><span class=cap>오해: 고액은 입력 오류가 아니라 꼬리입니다. 빼면 가장 비싼 오차를 숨깁니다.</span></li><li>MAPE 로만 보고하면 된다<br><span class=cap>오해: MAPE 는 금액이 큰 사람의 오차를 작게 보이게 합니다. 고액 그룹은 달러 오차를 함께 봅니다.</span></li></ol><p><b>해설</b> 흡연자 그룹은 가입할 때 알 수 있지만, ‘고액’은 1년이 지나야 압니다. 그래서 보고서에는 ‘사후 분석용’이라고 밝히고, 예측 금액 구간별 오차를 함께 봅니다(3편).</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><h3>강의 멘트</h3><div class="cols"><div class="card"><h3>그룹별 오차</h3><p><span class="tagx">도입</span> 전체 MAE 하나 뒤에 어떤 그룹이 숨어 있는지 나눠 봅니다.</p><p><span class="tagx">핵심</span> 핵심: 선형 회귀 흡연자 MAE $8,660 vs 비흡연자 $3,058, 고액 134명 전원 과소 추정.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “전체 MAE 가 작으면 모든 고객에게 작다”.</p><p><span class="tagx">정리</span> 정리: 그룹별 MAE 와 평균 잔차를 함께 보고한다.</p></div><div class="card"><h3>정의</h3><p><span class="tagx">도입</span> ‘흡연자만 정확도’를 수식으로 쓰면 무엇일까요?</p><p><span class="tagx">핵심</span> 핵심: E[|y − ŷ| | smoker = yes], 편향은 E[ŷ − y | 그룹].</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “고액 10% 그룹도 흡연자 그룹과 같은 종류다”. 정답으로 고른 사후 그룹이다.</p><p><span class="tagx">정리</span> 정리: 조건을 밝혀 쓰고, 조건이 가입 시점에 알 수 있는지 구분한다.</p></div><div class="card"><h3>MSE 분해</h3><p><span class="tagx">도입</span> 전체 오차와 그룹 오차는 어떤 관계일까요?</p><p><span class="tagx">핵심</span> 핵심: MSE 전체 = Σ 비율 × 그룹 MSE (좌변 = 우변 확인).</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “그룹 MSE 를 그냥 더하면 전체”.</p><p><span class="tagx">정리</span> 정리: 작은 그룹이라도 오차가 크면 전체 오차의 큰 몫을 만든다(선형 46.5%).</p></div><div class="card"><h3>fold 흔들림</h3><p><span class="tagx">도입</span> fold 하나의 흡연자는 몇 명일까요? (50~60명)</p><p><span class="tagx">핵심</span> 핵심: 그래디언트 부스팅 흡연자 MAE 가 fold 마다 $1,824 ~ $2,373.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “한 번 잰 그룹 오차가 진짜 값”.</p><p><span class="tagx">정리</span> 정리: 작은 그룹 숫자는 범위와 함께 — 3편의 첫 개선.</p></div></div></div></div></section><section class="part" id="a3"><div class="wrap"><div class="part-head" style="--kc:var(--data)"><div class="hex">3</div><h2>그 숫자를 성능이라 부르면 생기는 일<span class="en">방법형</span></h2><p><a href="3_problems_fixes.html#author-sec">3편 페이지의 교육자 안내로 돌아가기</a></p></div><div class="body"><h3>확인 문제 (4개)</h3><div class="card"><h3>문제 1</h3><p>Q1. 흡연자 MAE 를 부트스트랩으로 2,000번 다시 뽑아 잰 것은 데이터 증강일까요?</p><ol><li>증강이다. 같은 사람을 여러 번 뽑았으니까<br><span class=cap>오해: 부트스트랩은 학습 데이터를 늘리지 않습니다. 이미 있는 검증 예측의 오차를 다시 세어 우연의 크기를 잴 뿐입니다.</span></li><li><b>증강이 아니다. 모델은 다시 학습하지 않고, 있는 검증 오차를 다시 뽑아 MAE 의 흔들림을 잰다 ✔ 정답</b></li><li>증강이지만 평가에만 쓰니 괜찮다<br><span class=cap>오해: 증강은 학습 데이터에 가짜 행을 넣는 것입니다. 부트스트랩 평가는 그 정의에 해당하지 않습니다.</span></li></ol><p><b>해설</b> 그래디언트 부스팅 흡연자 MAE $2,107 의 95% 구간은 [$1,721, $2,544] 입니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 2</h3><p>Q2. 그래디언트 부스팅의 로그 타깃은 MAE 가 원래 타깃보다 작습니다. 그런데 3 : 1 비용은 더 큽니다. 왜일까요?</p><ol><li>계산 실수다<br><span class=cap>오해: MAE 와 비대칭 비용은 다른 것을 잽니다.</span></li><li><b>로그 타깃은 적게 잡는 사람이 더 많아(26.2% vs 19.3%), 비싼 쪽 오차가 늘었기 때문 ✔ 정답</b></li><li>비용은 R² 로만 비교해야 한다<br><span class=cap>오해: R² 는 방향을 보지 않습니다. 비용은 편향 · 과소 비율과 함께 봅니다.</span></li></ol><p><b>해설</b> MAE: $2,135 vs $2,448, 3 : 1 비용: $4,929 vs $4,909.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 3</h3><p>Q3. 선형 회귀에 흡연 × 비만 상호작용을 넣으면 흡연자 MAE 가 $8,660 → $1,737 로 줄어듭니다. 그 이유로 가장 알맞은 것은?</p><ol><li>데이터 행이 늘어서<br><span class=cap>오해: 행은 1,337개 그대로입니다. 열만 3개 늘었습니다.</span></li><li><b>흡연자이면서 BMI 30 이상인 사람의 의료비가 따로 크게 뛰는데, 직선 모델이 그 ‘따로’를 표현할 칸이 생겨서 ✔ 정답</b></li><li>비만인 사람을 데이터에서 빼서<br><span class=cap>오해: 아무도 빼지 않았습니다.</span></li></ol><p><b>해설</b> 1부 1편 평면의 맨 위 띠(흡연 + BMI 30 이상)입니다. R² 도 0.747 → 0.866 로 올라 그래디언트 부스팅(0.860)과 비슷해집니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 4</h3><p>Q4. 스미어링 보정을 하면 그래디언트 부스팅 로그 모델의 평균 예측은 실제에 가까워지는데 MAE 는 커집니다. 올바른 결론은?</p><ol><li>보정이 틀렸다<br><span class=cap>오해: 보정은 평균을 맞히는 일을 제대로 했습니다(-5.0% → +2.4%).</span></li><li><b>평균(합계)이 중요하면 보정하고, 한 사람 MAE 가 중요하면 하지 않는다. 목적에 따라 고른다 ✔ 정답</b></li><li>MAE 가 커졌으니 항상 쓰지 않는다<br><span class=cap>오해: 지급 준비금처럼 합계가 중요한 일에서는 평균이 맞아야 합니다.</span></li></ol><p><b>해설</b> MAE 는 중앙값에서, 제곱 오차와 합계는 평균에서 가장 작아집니다. exp(로그 예측)은 중앙값 쪽, 스미어링은 평균 쪽입니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><p><b>강의 가이드라인.</b> 학생에게 문제점을 먼저 세 개 적게 한 뒤 표와 비교시키세요. 채점은 ‘문제점-개선-지표’의 1:1 대응 여부(각 3점)와 실제 구현 1개 이상의 전/후 숫자(4점)를 권합니다. 중첩 CV 의 차이가 작게 나온 것($18)을 ‘잘못’으로 보지 않도록 짚어 주세요.</p><h3>강의 멘트</h3><div class="cols"><div class="card"><h3>문제점 표</h3><p><span class="tagx">도입</span> 문항 2의 숫자를 그대로 성능이라 부르면 무엇이 빠질까요?</p><p><span class="tagx">핵심</span> 핵심: 작은 그룹 · 방향 · 상호작용 · 되돌리기 편향 · 고를 때의 낙관, 다섯 가지와 1:1 개선.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “문제점은 많이 쓸수록 좋다”. 각 문제에 바꿀 것 · 이유 · 확인 지표가 1:1 로 붙어야 한다.</p><p><span class="tagx">정리</span> 정리: (a) 무엇을 (b) 왜 (c) 무엇으로 확인 — 세 칸을 채운다.</p></div><div class="card"><h3>1 구간</h3><p><span class="tagx">도입</span> 흡연자 274명의 MAE 는 얼마나 믿을 수 있을까요?</p><p><span class="tagx">핵심</span> 핵심: 부트스트랩 95% 구간과 fold 범위를 함께.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “부트스트랩 = 증강”. 학습 데이터를 늘리지 않고 평가 오차를 다시 센다.</p><p><span class="tagx">정리</span> 정리: 구간이 겹치면 우열을 단정하지 않는다.</p></div><div class="card"><h3>3 상호작용</h3><p><span class="tagx">도입</span> 버튼으로 개선 전/후의 산점도를 비교합니다.</p><p><span class="tagx">핵심</span> 핵심: 흡연자 MAE $8,660 → $1,737.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “복잡한 모델만 상호작용을 잡는다”. 특성 설계로 선형도 잡는다.</p><p><span class="tagx">정리</span> 정리: 1부 1편의 띠 세 줄이 곧 상호작용이었다.</p></div><div class="card"><h3>4 스미어링</h3><p><span class="tagx">도입</span> exp(로그 예측)의 평균은 왜 모자랄까요?</p><p><span class="tagx">핵심</span> 핵심: 옌센 부등식 → 스미어링 F = mean(exp(r)), 학습 fold 로만.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “보정하면 모든 지표가 좋아진다”. MAE 는 커진다.</p><p><span class="tagx">정리</span> 정리: 합계가 목적이면 보정, 개인 MAE 가 목적이면 그대로.</p></div></div></div></div></section><section class="part" id="a4"><div class="wrap"><div class="part-head" style="--kc:var(--data)"><div class="hex">4</div><h2>그 모델, HTML에 그대로 넣어도 될까<span class="en">정리형</span></h2><p><a href="4_html_deploy.html#author-sec">4편 페이지의 교육자 안내로 돌아가기</a></p></div><div class="body"><h3>확인 문제 (4개)</h3><div class="card"><h3>문제 1</h3><p>Q1. 지역 원-핫 열 순서가 바뀐 채로 배포했더니 평균 견적은 +1달러만 변했습니다. 이 배포는 괜찮을까요?</p><ol><li>괜찮다. 평균이 거의 같으니까<br><span class=cap>오해: 평균은 지역 간 상쇄로 거의 그대로지만 272명의 견적이 10% 넘게 바뀌었습니다.</span></li><li><b>안 된다. 평균은 같아도 272명(20.3%)의 견적이 10% 넘게 바뀌었으므로, 한 사람씩 대조해야 한다 ✔ 정답</b></li><li>판단할 수 없다. 평균 말고는 볼 숫자가 없다<br><span class=cap>오해: 한 사람씩 sklearn 과 비교한 차이(최대 차이 · 바뀐 사람 수)를 보면 됩니다.</span></li></ol><p><b>해설</b> northwest 와 southwest 계수가 서로 바뀌어 두 지역 고객의 견적이 반대로 움직이고 평균에서 상쇄됩니다. 그래서 배포 검증은 평균이 아니라 한 사람씩(최대 차이 · 일치율) 합니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 2</h3><p>Q2. 학습에 없던 지역 “기타”를 입력했더니 상호작용 선형이 계산을 해냈습니다. 무슨 일이 일어난 걸까요?</p><ol><li>모델이 새 지역을 스스로 배웠다<br><span class=cap>오해: 모델은 학습 후 바뀌지 않습니다. 원-핫 칸이 모두 0 이 되었을 뿐입니다.</span></li><li><b>원-핫 세 칸이 모두 0 이 되어, 기준 지역 northeast 로 조용히 계산됐다 ✔ 정답</b></li><li>지역 평균으로 자동 보정됐다<br><span class=cap>오해: 그런 규칙은 내보내지 않았습니다. 그래서 입력 검증 규칙이 필요합니다.</span></li></ol><p><b>해설</b> drop_first 인코딩에서 모든 지역 칸이 0 이면 기준 범주(northeast)입니다. southeast 고객 견적 $42,975 이 ‘기타’로 넣으면 $43,873 로 바뀝니다. 모르는 값은 입력 오류로 돌려보내야 합니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 3</h3><p>Q3. 로그 타깃 모델의 exp(ŷ) 평균은 실제 평균보다 2.4% 낮았습니다. 가장 알맞은 해석은?</p><ol><li>편향이 작으니 그대로 배포해도 된다<br><span class=cap>오해: 전체 평균은 상쇄된 값입니다. 비흡연자 11.2% 과소, 흡연자 6.5% 과대입니다.</span></li><li>스미어링 계수만 곱하면 모든 그룹이 맞는다<br><span class=cap>오해: 스미어링 후 흡연자는 +21.3% 로 더 벌어집니다. 오차가 고르게 퍼져 있다는 가정이 깨졌기 때문입니다.</span></li><li><b>그룹별로 반대 방향 편향이 상쇄된 것이므로, 그룹별 편향을 따로 검증해야 한다 ✔ 정답</b></li></ol><p><b>해설</b> 비흡연자 -11.2%, 흡연자 +6.5%. 전체 -2.4% 는 상쇄의 결과입니다. 역변환 규칙과 그룹별 검증표를 함께 내보내야 합니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 4</h3><p>Q4. 이 과제 조건(외부 서버 없는 단일 HTML)에서 권장안이 상호작용 선형 JSON 인 이유로 가장 알맞은 것은?</p><ol><li>선형 회귀가 언제나 트리보다 정확하기 때문<br><span class=cap>오해: 언제나는 아닙니다. 이 데이터에서는 상호작용을 넣었을 때 5-Fold MAE $2,358 로 GBM $2,448 보다 작았습니다.</span></li><li><b>5-Fold MAE 가 GBM 보다 작고, 파일이 1,379 바이트로 작으며, 계산을 사람이 검산할 수 있기 때문 ✔ 정답</b></li><li>서버 API 보다 빠르기 때문<br><span class=cap>오해: 속도는 이 과제의 핵심 근거가 아닙니다. 서버는 과제 조건상 쓸 수 없습니다.</span></li></ol><p><b>해설</b> 상호작용 선형: MAE $2,358 · 과소 추정 12.7% · 1,379 바이트. GBM: MAE $2,448 · 과소 추정 19.3% · 105,998 바이트. 둘 다 JS 계산이 sklearn 과 같았습니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><h3>강의 가이드라인 (정리형)</h3><ul><li><b>40분 구성:</b> 결론 5분 → 내보낼 것 표 5분 → 직접 계산(1,337명 버튼) 5분 → 규칙 누락 10분 → 범위 밖 입력 5분 → 역변환 편향 7분 → 대안 · 권장안 3분.</li><li><b>시연 순서:</b> 규칙 누락은 ‘정상’ → ‘지역 열 순서’ 순서로 누른다. 평균 +1달러를 먼저 읽게 한 뒤 272명을 보여 준다.</li><li><b>채점 기준(문항 4):</b> 결론을 첫 문장에 썼다 2점 · 함께 내보낼 것 4가지 이상 2점 · 외삽 사례와 입력 검증 규칙 2점 · 역변환 편향을 그룹별로 확인 2점 · 대안 2개 이상과 권장안의 근거 2점.</li><li><b>주의:</b> ONNX 의 파일 크기는 이 시리즈에서 재지 않았다. 학생이 크기를 쓰려면 직접 재야 한다.</li></ul><h3>강의 멘트</h3><div class="cols"><div class="card"><h3>결론 먼저</h3><p><span class="tagx">도입</span> 과제 4번의 질문을 그대로 칠판에 씁니다: 문항 2의 모델을 그대로 HTML 에 넣을 수 있나?</p><p><span class="tagx">핵심</span> 핵심: 모델 계수만으로는 안 된다. 열 순서 · 인코딩 사전 · 파생 규칙 · 표준화 값 · 입력 검증 · 역변환 규칙을 함께 내보내면 1,337명이 sklearn 과 같다.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “계수만 복사하면 같은 모델”. 상호작용 규칙 하나가 빠지면 279명의 견적이 10% 넘게 바뀐다.</p><p><span class="tagx">정리</span> 정리: ‘그대로’의 증거는 한 사람씩 대조한 최대 차이와 일치율이다.</p></div><div class="card"><h3>규칙 누락</h3><p><span class="tagx">도입</span> 버튼을 누르기 전에 묻습니다: 지역 열 순서가 바뀌면 평균 견적은 얼마나 변할까요?</p><p><span class="tagx">핵심</span> 핵심: 평균은 +1달러인데 272명이 10% 넘게 바뀐다. 오차가 서로 상쇄된다.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “평균이 같으면 배포 성공”. 평균 검증은 순서 사고를 잡지 못한다.</p><p><span class="tagx">정리</span> 정리: 배포 검증표 = 최대 차이 + 일치율 + 바뀐 사람 수.</p></div><div class="card"><h3>범위 밖 입력</h3><p><span class="tagx">도입</span> 나이 75, BMI 60, 지역 ‘기타’를 넣어 보게 합니다.</p><p><span class="tagx">핵심</span> 핵심: 선형은 직선을 늘이고 트리는 마지막 칸에 머문다. 모르는 지역은 조용히 northeast 가 된다.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “계산이 되면 맞는 견적”. 계산은 되지만 근거가 없다.</p><p><span class="tagx">정리</span> 정리: 입력 범위 · 허용 값 · 경계 규칙을 JSON 에 함께 넣고 경고를 띄운다.</p></div><div class="card"><h3>역변환 편향</h3><p><span class="tagx">도입</span> 전체 평균만 보면 −2.4% 로 작아 보이는 표를 먼저 보여 줍니다.</p><p><span class="tagx">핵심</span> 핵심: 비흡연자 −11.2%, 흡연자 +6.5% 가 상쇄된 것. 스미어링은 비흡연자만 고친다.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “스미어링 계수 하나면 역변환 편향이 사라진다”. 오차가 고르게 퍼져 있다는 가정이 필요하다.</p><p><span class="tagx">정리</span> 정리: 로그 모델을 배포하면 그룹별 편향 검증표를 함께 낸다. 이 데이터에서는 달러 그대로의 상호작용 선형이 낫다.</p></div></div></div></div></section><section class="part" id="a5"><div class="wrap"><div class="part-head" style="--kc:var(--data)"><div class="hex">5</div><h2>꼬리가 긴 금액은 어디에나 있다<span class="en">정리형</span></h2><p><a href="5_similar_cases.html#author-sec">5편 페이지의 교육자 안내로 돌아가기</a></p></div><div class="body"><h3>확인 문제 (4개)</h3><div class="card"><h3>문제 1</h3><p>Q1. 우리 데이터의 상위 1% 비율은 3.9%, 프랑스 자동차보험 손해액은 38.0% 입니다. 가장 알맞은 해석은?</p><ol><li>두 데이터의 꼬리 무게는 비슷하다<br><span class=cap>오해: 10배 가까이 다릅니다. 상위 1% 가 38.0% 를 가지는 데이터는 몇 건의 손해가 전체를 흔듭니다.</span></li><li><b>자동차보험 손해액의 꼬리가 훨씬 무거워, 몇 건의 대형 손해가 전체 금액을 크게 좌우한다 ✔ 정답</b></li><li>우리 데이터에는 꼬리가 없다<br><span class=cap>오해: 우리 데이터도 평균이 중앙값의 1.41배이고 상위 10% 가 31.8% 를 차지합니다. 가벼운 편일 뿐입니다.</span></li></ol><p><b>해설</b> 같은 방법(금액 큰 순서로 상위 1% 의 합 ÷ 전체 합)으로 계산했습니다: 우리 3.9%, freMTPL2sev 38.0%, danish 17.2%.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 2</h3><p>Q2. scikit-learn 의 자동차보험 예제는 손해액을 200,000 에서 잘라(clip) 학습합니다. 이 시리즈에서 같은 일을 하지 않는 이유는?</p><ol><li>예제가 틀렸기 때문<br><span class=cap>오해: 예제는 계산 편의를 위해 자른다고 밝혔습니다. 틀린 것이 아니라 목적이 다릅니다.</span></li><li><b>목표값을 자르면 큰 손해를 덜 예측하는 모델이 되고, 그 차이가 숨겨지기 때문. 대형 손해는 따로 모델링한다 ✔ 정답</b></li><li>우리 데이터에는 200,000 이 넘는 값이 없어서<br><span class=cap>오해: 그것은 우연입니다. 원칙은 ‘목표값은 자르지 않는다’입니다.</span></li></ol><p><b>해설</b> 고액은 오류가 아니라 꼬리입니다. 자르면 예측 합계와 고액 오차가 실제보다 좋아 보입니다. 대신 대형 손해를 분리하거나(재보험) 꼬리를 따로 맞춥니다(EVT).</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 3</h3><p>Q3. 포르투갈 병원 연구에서 장기 재원 3.9%가 입원일수의 19.2%를 차지했습니다. 평균 재원일수만 보고하면 생기는 문제는?</p><ol><li>문제없다. 평균은 모든 입원을 반영한다<br><span class=cap>오해: 평균은 반영하지만 ‘누가’ 큰 몫을 쓰는지는 숨깁니다. 이상치 평균 35.5일, 나머지 6.0일.</span></li><li><b>소수의 장기 재원이 전체를 끌어올리는 구조가 숨어, 관리해야 할 집단을 놓친다 ✔ 정답</b></li><li>장기 재원은 오류이므로 지워야 한다<br><span class=cap>오해: 실제 입원입니다. 논문도 지우지 않고 따로 분류해 요인을 분석했습니다.</span></li></ol><p><b>해설</b> 우리 데이터의 흡연자(20.5% → 금액 49.5%)와 같은 구조입니다. 그래서 그룹별 · 구간별 오차를 따로 보고합니다(우선순위 2).</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><div class="card"><h3>문제 4</h3><p>Q4. MEPS 2022 에서 하위 50%는 의료비의 2.8%만 썼지만, 우리 데이터의 하위 50%는 18.5% 를 씁니다. 가장 그럴듯한 이유는?</p><ol><li>우리 데이터의 사람들이 더 건강하지 않아서<br><span class=cap>오해: 데이터에 없는 사실을 단정하는 해석입니다.</span></li><li><b>우리 데이터에는 의료비가 0 원인 사람이 없고(최소 $1,122) 최댓값도 $63,770 에서 멈춰, 금액이 덜 몰려 있다 ✔ 정답</b></li><li>MEPS 의 숫자가 틀렸다<br><span class=cap>오해: 보고서 값입니다. 두 자료의 대상과 구성이 다를 뿐입니다.</span></li></ol><p><b>해설</b> 0 원이 많은 실제 의료비에서는 ‘쓸까 · 얼마나’를 나누는 2단계 모델이 필요합니다. 이 데이터는 0 원이 없어서 한 단계 회귀로 충분했습니다.</p><p class="cap"><b>배점</b> 2점 · 정답 + 이유 한 문장 = 2점, 정답만 = 1점, 오답이어도 핵심 이유를 말하면 1점</p></div><h3>강의 가이드라인 (정리형)</h3><ul><li><b>30분 구성:</b> 우리 꼬리 5분 → 사례 4건 15분(모둠별 1건씩 (a)~(d) 발표) → 비교표 5분 → 우선순위 5분.</li><li><b>모둠 활동:</b> 각 모둠이 사례 카드의 출처 링크를 직접 열어, 페이지의 숫자 하나를 원문에서 찾아 확인한다. 못 찾으면 그 사실을 보고하게 한다.</li><li><b>채점 기준(문항 5):</b> 사례 2건 이상 · 열리는 출처 2점 · (a)~(d) 빠짐없이 4점 · 꼬리 지표로 우리 데이터와 비교 2점 · 우선순위 3개 이내와 확인 지표 2점.</li><li><b>주의:</b> ‘보증 수리비’는 꼬리 비율을 확인할 수 있는 공개 출처를 찾지 못해 MEPS 의료비 지출 집중으로 바꿨다. 학생이 보증 사례를 쓰려면 출처의 숫자를 직접 확인하게 한다.</li></ul><h3>강의 멘트</h3><div class="cols"><div class="card"><h3>우리 꼬리</h3><p><span class="tagx">도입</span> 사례를 찾기 전에 우리 데이터의 꼬리 비율부터 잽니다: 상위 1%가 금액의 몇 %?</p><p><span class="tagx">핵심</span> 핵심: 상위 1% 3.9%, 상위 10% 31.8%, 흡연자 20.5% → 금액 49.5%.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “평균이 중앙값보다 크면 무조건 꼬리가 무겁다”. 무게는 꼬리 비율로 잰다.</p><p><span class="tagx">정리</span> 정리: 사례 비교의 기준선은 우리 데이터다.</p></div><div class="card"><h3>사례</h3><p><span class="tagx">도입</span> 네 사례를 같은 순서 (a)~(d) 로 읽게 합니다.</p><p><span class="tagx">핵심</span> 핵심: 공개 데이터가 있는 사례는 직접 계산(freMTPL2sev 38.0%, danish 17.2%), 없는 사례는 출처 값.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “출처에 있으면 그대로 옮기면 된다”. 계산한 값과 출처 값을 구분해 적어야 한다.</p><p><span class="tagx">정리</span> 정리: 사례마다 숫자 메모(계산 / 출처 / 가정)를 남긴다.</p></div><div class="card"><h3>우선순위</h3><p><span class="tagx">도입</span> 꼬리가 가벼운 우리 데이터에 EVT 가 필요한지 묻습니다.</p><p><span class="tagx">핵심</span> 핵심: ① 소수 집단의 모양 ② 그룹별 · 구간별 오차 ③ 분포에 맞는 손실. 꼬리 무게를 재고 고른다.</p><p><span class="tagx">흔한 오해</span> 흔한 오해: “어려운 방법일수록 좋은 답”. 상위 1% 3.9% 데이터와 38.0% 데이터는 처방이 다르다.</p><p><span class="tagx">정리</span> 정리: 전략마다 확인 지표를 붙인다(흡연자 MAE, 상위 10% MAE, 그룹별 역변환 편향).</p></div></div></div></div></section></main><footer><div class="wrap"><p><b>AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전</b> · 글 · 안상선 ((주)M-Robo 대표)</p><p><b>설명용 모형인 것:</b> 이 시리즈는 공개 학습용 건강보험 의료비 데이터(1,338행)를 그대로 씁니다. 가상 데이터를 만들거나 데이터를 증강하지 않습니다. 완전히 같은 행 1건만 빼고, 목표값(charges)은 자르거나 고치지 않습니다.</p><p><b>주의:</b> 이 시리즈는 교육용 설명입니다. 보험 가입 · 보험료 · 보험금 심사 · 투자 · 의료에 대한 조언이 아닙니다. 데이터는 공개 학습 데이터 원본이며, 실제 보험사의 현재 보험료 산정 · 심사 기준을 뜻하지 않습니다. 건강 정보(흡연 · BMI)는 설명용이며 의료 조언이 아닙니다. 실제 보험료 산정에서 성별 · 지역 · 나이 같은 특성의 사용은 감독 규정에 따라 금지되거나 제한될 수 있습니다.</p><p><b>데이터:</b> <a href="https://raw.githubusercontent.com/fintech-data/Revolution/main/data/insurance.csv">원본 CSV</a> · 저장소 사본 <a href="data/insurance.csv">data/insurance.csv</a> (md5 <span class="mono">d5364d06246fb4bfa4cc7d1ee89ebd0d</span>)</p><p><a href="https://creativecommons.org/licenses/by-nc/4.0/deed.ko">CC BY-NC 4.0</a> — 출처 표기 예: “AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전, 글 · 안상선 ((주)M-Robo 대표), CC BY-NC 4.0”</p></div></footer>
+<p id="lang-note" class="note" hidden style="position:fixed;bottom:12px;left:12px;right:12px;z-index:30"></p>
+<script>const SITE="https://adminmrobo.github.io/ai-biz-insurtech-04/";
+// ---------- 공통: 테마 색 읽기 ----------
+function cssv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+const REDRAW=[];function onTheme(f){REDRAW.push(f)}
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>REDRAW.forEach(f=>f()))}catch(e){}
+new MutationObserver(()=>REDRAW.forEach(f=>f())).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+// 캔버스 준비 (선명하게)
+function prep(cv,h){const r=cv.getBoundingClientRect();const w=Math.max(200,r.width||cv.parentNode.clientWidth||600);const d=window.devicePixelRatio||1;cv.width=w*d;cv.height=h*d;cv.style.height=h+'px';const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);return {c,w,h}}
+let RZ;addEventListener('resize',()=>{clearTimeout(RZ);RZ=setTimeout(()=>REDRAW.forEach(f=>f()),150)});
+const fmtP=(x,d=1)=>(x*100).toFixed(d)+'%';
+const nf=n=>Number(n).toLocaleString('en-US');
+// ---------- 확인 문제 ----------
+document.querySelectorAll('.q').forEach(q=>{const ok=q.dataset.ok,fb=q.querySelector('.fb');q.querySelectorAll('.opts button').forEach(b=>b.addEventListener('click',()=>{
+ q.querySelectorAll('.opts button').forEach(x=>x.classList.remove('right','wrong'));
+ if(b.dataset.i===ok){b.classList.add('right');fb.innerHTML='<b>정답입니다.</b> '+q.dataset.ex}else{b.classList.add('wrong');fb.innerHTML='<b>다시 생각해 보세요.</b> '+(b.dataset.why||'')}}))});
+// ---------- 복사 · 내려받기 ----------
+function copyTxt(t,btn){const o=btn.textContent;const done=()=>{btn.textContent='복사됨';setTimeout(()=>btn.textContent=o,1300)};try{navigator.clipboard.writeText(t).then(done,()=>{btn.textContent='직접 선택해 복사하세요'})}catch(e){btn.textContent='직접 선택해 복사하세요'}}
+function saveFile(name,text,type){try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type||'text/plain'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}catch(e){}}
+function toIpynb(src,formal){const lines=src.split('\n');const cells=[];let cur=[];
+ lines.forEach(l=>{if(/^# [①-⑳]/.test(l)&&cur.join('').trim()){cells.push(cur);cur=[]}cur.push(l)});if(cur.join('').trim())cells.push(cur);
+ const mk=a=>{while(a.length&&!a[a.length-1].trim())a.pop();return {cell_type:'code',metadata:{},execution_count:null,outputs:[],source:a.map((l,i)=>i<a.length-1?l+'\n':l)}};
+ const out=cells.map(mk).filter(c=>c.source.join('').trim());
+ if(formal)out.unshift(mk(['# 공통 코드 내려받기 (Colab)','!wget -q -O common.py '+SITE+'code/common.py']));
+ return JSON.stringify({cells:out,metadata:{kernelspec:{name:'python3',display_name:'Python 3'},language_info:{name:'python'}},nbformat:4,nbformat_minor:5},null,1)}
+document.querySelectorAll('.codebox').forEach(box=>{const tabs=[...box.querySelectorAll('.tabs button')];const pre=box.querySelector('pre code');const info=box.querySelector('.tools span');
+ let curId=null;function show(b){tabs.forEach(t=>t.setAttribute('aria-selected',t===b?'true':'false'));curId=b.dataset.src;const s=document.getElementById(curId);pre.textContent=s.textContent.replace(/^\n/,'');info.textContent=b.dataset.info||''}
+ tabs.forEach(t=>t.addEventListener('click',()=>show(t)));if(tabs[0])show(tabs[0]);
+ box.querySelector('[data-act=copy]').addEventListener('click',e=>copyTxt(pre.textContent,e.currentTarget));
+ box.querySelector('[data-act=py]').addEventListener('click',()=>{const s=document.getElementById(curId);saveFile(s.dataset.file,pre.textContent,'text/x-python')});
+ box.querySelector('[data-act=nb]').addEventListener('click',()=>{const s=document.getElementById(curId);saveFile(s.dataset.file.replace(/\.py$/,'.ipynb'),toIpynb(pre.textContent,s.dataset.formal==='1'),'application/json')})});
+document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',e=>copyTxt(document.getElementById(b.dataset.copy).textContent,e.currentTarget)));
+document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click',()=>saveFile(b.dataset.name,document.getElementById(b.dataset.save).textContent)));
+// ---------- 상태 캐릭터 ----------
+function robo(id,st){const w=document.getElementById(id);if(!w||w.dataset.st===st)return;w.dataset.st=st;w.querySelectorAll('[data-rs]').forEach(e=>e.hidden=e.dataset.rs!==st)}
+// ---------- 식구 카드: 모습 바꾸기 ----------
+document.querySelectorAll('.crew .moods button').forEach(b=>b.addEventListener('click',()=>{const card=b.closest('.crew');
+ card.querySelectorAll('.moods button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+ card.querySelectorAll('.cf').forEach(f=>f.classList.toggle('on',f.dataset.face===b.dataset.fb))}));
+// ---------- 막대 (기준선 포함) ----------
+function setBar(el,v,base){el.querySelector('.fill').style.width=Math.max(0,Math.min(1,v))*100+'%';const bl=el.querySelector('.base');if(bl){if(base==null)bl.hidden=true;else{bl.hidden=false;bl.style.left='calc('+base*100+'% - 1px)'}}el.querySelector('.v').textContent=fmtP(v)}
+
+// ---------- 회귀용 도우미 ----------
+const fmtD=(x,d=0)=>(x<0?'−$':'$')+Math.abs(x).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
+const fmt=(x,d=3)=>Number(x).toFixed(d);
+function setBarV(el,frac,base,txt){el.querySelector('.fill').style.width=Math.max(0,Math.min(1,frac))*100+'%';const bl=el.querySelector('.base');if(bl){if(base==null)bl.hidden=true;else{bl.hidden=false;bl.style.left='calc('+Math.max(0,Math.min(1,base))*100+'% - 1px)'}}el.querySelector('.v').textContent=txt}
+// 간단한 좌표 그림: plot(cv,{h,x:[min,max],y:[min,max],xt:[...],yt:[...],xl,yl,xf,yf,draw:(c,X,Y)=>{}})
+function plot(cv,o){const {c,w,h}=prep(cv,o.h||320);const L=o.left||62,R=12,T=12,B=o.bottom||40;const X=v=>L+(v-o.x[0])/(o.x[1]-o.x[0])*(w-L-R);const Y=v=>h-B-(v-o.y[0])/(o.y[1]-o.y[0])*(h-T-B);
+ c.clearRect(0,0,w,h);c.font='11px '+cssv('--f-mono');c.lineWidth=1;
+ (o.yt||[]).forEach(t=>{c.strokeStyle=cssv('--grid');c.beginPath();c.moveTo(L,Math.round(Y(t))+.5);c.lineTo(w-R,Math.round(Y(t))+.5);c.stroke();c.fillStyle=cssv('--muted');c.textAlign='right';c.fillText((o.yf||String)(t),L-6,Y(t)+4)});
+ (o.xt||[]).forEach(t=>{c.fillStyle=cssv('--muted');c.textAlign='center';c.fillText((o.xf||String)(t),X(t),h-B+16)});
+ c.strokeStyle=cssv('--line');c.strokeRect(L+.5,T+.5,w-L-R-1,h-T-B-1);
+ c.fillStyle=cssv('--muted');c.textAlign='center';if(o.xl)c.fillText(o.xl,L+(w-L-R)/2,h-6);
+ if(o.yl){c.save();c.translate(12,T+(h-T-B)/2);c.rotate(-Math.PI/2);c.fillText(o.yl,0,0);c.restore()}
+ c.save();c.beginPath();c.rect(L,T,w-L-R,h-T-B);c.clip();if(o.draw)o.draw(c,X,Y,w,h);c.restore();return {c,X,Y,w,h,L,R,T,B}}
+function dot(c,x,y,r,col,a){c.globalAlpha=a==null?1:a;c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.globalAlpha=1}
+function line(c,pts,col,lw,dash){c.strokeStyle=col;c.lineWidth=lw||2;c.setLineDash(dash||[]);c.beginPath();pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.stroke();c.setLineDash([]);c.lineWidth=1}
+const kfmt=v=>v>=1000?'$'+(v/1000).toFixed(0)+'k':'$'+v;
+
+</script>
+</body>
+</html>

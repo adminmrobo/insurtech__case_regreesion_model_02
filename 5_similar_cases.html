@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<script>
+(function(){var KEY='it4_lang',AVAILABLE=['ko'],LANGS=['ko','en','zh','ja','uz','ru'];
+var cur=document.documentElement.lang||'ko';cur=cur.slice(0,2);
+function root(){var p=location.pathname;var dir=p.replace(/[^\/]*$/,'');if(cur!=='ko'){dir=dir.replace(/[^\/]+\/$/,'')}return dir}
+function file(){var f=location.pathname.split('/').pop();if(!f)f='index.html';if(!/\.html?$/.test(f))f+='.html';return f}
+function url(l){return root()+(l==='ko'?'':l+'/')+file()+location.search.replace(/[?&]lang=[^&]*/,'').replace(/^&/,'?')+location.hash}
+function exists(u,cb){if(location.protocol==='file:'){cb(true);return}try{fetch(u,{method:'HEAD'}).then(function(r){cb(!(r.status===404||r.status===410))},function(){cb(true)})}catch(e){cb(true)}}
+function save(l){try{localStorage.setItem(KEY,l)}catch(e){}}
+function drop(){try{localStorage.removeItem(KEY)}catch(e){}}
+window.itSetLang=function(l,manual){if(l===cur)return;
+ if(AVAILABLE.indexOf(l)<0){if(manual){var n=document.getElementById('lang-note');if(n){n.hidden=false;n.textContent='이 언어판은 아직 준비 중입니다 ('+l+'). 한국어판을 보여 드립니다.'}}else{drop()}return}
+ var u=url(l);exists(u,function(ok){if(ok){if(manual)save(l);location.href=u}else{drop();if(manual){var n=document.getElementById('lang-note');if(n){n.hidden=false;n.textContent='언어판 파일을 찾지 못했습니다: '+u}}}})};
+var q=(location.search.match(/[?&]lang=([a-z]{2})/)||[])[1];
+if(q&&LANGS.indexOf(q)>=0){save(q);if(q!==cur)itSetLang(q,true);return}
+var s=null;try{s=localStorage.getItem(KEY)}catch(e){}
+if(s&&s!==cur){itSetLang(s,false);return}
+if(!s){var b=(navigator.language||'ko').slice(0,2);if(b!==cur&&AVAILABLE.indexOf(b)>=0)itSetLang(b,false)}
+})();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>5편 · 꼬리가 긴 금액은 어디에나 있다 | 인슈어테크 #4 실전</title>
+<meta name="description" content="AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전 5편(과제 문항 5). 자동차보험 손해액 · 재보험 화재 손해 · 병원 재원일수 · 미국 의료비 지출 집중을 꼬리 비율로 비교하고, 이 데이터의 전략 우선순위 3개를 정한다.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Silkscreen&display=swap">
+<style>
+.say .av:has(img){background:#fff}
+.say .av img{display:block}
+img.scene{display:block;width:100%;max-width:720px;height:auto;aspect-ratio:9/5;object-fit:cover;border-radius:var(--r)}
+img.keyvis{display:block;width:100%;height:auto;aspect-ratio:1100/320;object-fit:cover;border-radius:var(--r)}
+img.pic{display:block;width:100%;height:auto;aspect-ratio:480/440;object-fit:cover;border-radius:6px}
+.crew .cf{background:#fff}
+.crew .cf img{width:100%;height:100%;object-fit:contain}
+.crew .moods button img{width:36px;height:36px;border-radius:7px;display:block}
+/* 레이아웃: 보상 센터 연구 노트 — 상단 바 · 히어로(그림 자리) · 육각 번호 섹션 · 카드형 실습 */
+:root{
+  --bg:#f6f5fb; --surface:#ffffff; --sunken:#eeecf7; --ink:#1d1a2e; --muted:#5d5873; --line:#dcd8ea;
+  --accent:#5b47c9; --accent-ink:#ffffff; --accent-soft:#ece8ff;
+  --core:#6a4fd8; --data:#c2417a; --seq:#13857f;
+  --c-no:#2f86c9; --c-claim:#d9730d; --c-3:#7b61d9; --c-4:#1f9e78;
+  --risk:#b4471b; --risk-bg:#fdeee6; --safe:#1f7a5c; --safe-bg:#e5f4ee; --warn:#9a620e; --warn-bg:#fbf1df;
+  --grid:#e6e3f0;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --f-pixel:"Silkscreen","IBM Plex Mono",monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12111a; --surface:#1b1a26; --sunken:#0e0d15; --ink:#ece9f7; --muted:#a29dba; --line:#2e2b40;
+  --accent:#a998ff; --accent-ink:#14121f; --accent-soft:#2a2547;
+  --core:#a48cf0; --data:#f07aaa; --seq:#4cc3b9;
+  --c-no:#3f8fd2; --c-claim:#d8742a; --c-3:#8a74e0; --c-4:#26a17c;
+  --risk:#f08a5d; --risk-bg:#3a1f16; --safe:#5fcf9f; --safe-bg:#14302a; --warn:#e3aa52; --warn-bg:#33270f;
+  --grid:#2a2738; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --grid:#2a2738; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.7;word-break:keep-all;overflow-wrap:break-word}
+a{color:var(--accent)}
+h1,h2,h3{line-height:1.3;text-wrap:balance;margin:0}
+p{margin:0}
+code,pre,.mono{font-family:var(--f-mono)}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:20px}
+nav.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;padding-block:8px}
+nav.top .brand{font-weight:700;text-decoration:none;color:var(--ink);white-space:nowrap}
+nav.top .brand b{font-family:var(--f-pixel);font-weight:400;color:var(--accent);margin-left:4px}
+nav.top .links{display:flex;gap:2px 12px;flex-wrap:wrap;font-size:.86rem;flex:1;min-width:0}
+nav.top .links a{color:var(--muted);text-decoration:none}
+nav.top .links a:hover{color:var(--ink)}
+nav.top select{width:auto;font:inherit;font-size:.82rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+header.hero{padding-block:28px 20px}
+.hero-grid{display:grid;gap:18px}
+.series{display:flex;flex-wrap:wrap;gap:6px}
+.series a{font-size:.78rem;text-decoration:none;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 10px;background:var(--surface)}
+.series a.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.kicker{font-family:var(--f-pixel);font-size:.82rem;color:var(--accent);letter-spacing:.04em}
+h1{font-size:clamp(1.7rem,4.2vw,2.5rem);font-weight:700;letter-spacing:-.015em}
+.lead{font-size:1.06rem;color:var(--muted);max-width:68ch}
+.byline{font-size:.84rem;color:var(--muted)}
+.guide{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted)}
+.guide span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+.chat{display:grid;gap:10px;max-width:760px}
+.say{display:flex;gap:12px;align-items:flex-start}
+.say .av{flex:0 0 52px;height:52px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:1.05rem;color:var(--accent-ink);background:var(--avc,var(--accent));position:relative;overflow:hidden}
+.say .av img{width:100%;height:100%;object-fit:cover;object-position:50% 18%}
+.say .av small{position:absolute;bottom:2px;left:0;right:0;font-size:.55rem;font-weight:500;text-align:center;opacity:.85}
+.say .sbub{background:var(--surface);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:8px 14px;min-width:0}
+.say .sbub b{font-size:.8rem;color:var(--muted);display:block}
+.say .sbub ul{margin:4px 0 0;padding-left:1.2em}
+.npc{display:inline-block;margin-left:6px;font-family:var(--f-pixel);font-size:.62rem;font-weight:400;letter-spacing:.06em;color:#3a2a00;background:#f2c94c;border:1px solid #b8901a;border-radius:3px;padding:0 5px;vertical-align:1px}
+.bomi{--avc:#d9730d}.actuary{--avc:#5b47c9}.fly{--avc:#13857f}.robo{--avc:#2f86c9}
+section.part{padding-block:34px 10px;border-top:1px solid var(--line);margin-top:26px}
+.part-head{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:center;margin-bottom:16px}
+.hex{width:44px;height:50px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:var(--kc,var(--accent));color:#fff;display:grid;place-items:center;font-family:var(--f-pixel);font-size:1.05rem;grid-row:span 2}
+.part-head h2{font-size:1.4rem}
+.part-head h2 span.en{font-family:var(--f-pixel);font-weight:400;font-size:.72rem;color:var(--muted);margin-left:8px;letter-spacing:.03em}
+.part-head p{color:var(--muted);font-size:.94rem}
+.body{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.body>p,.body>ul,.body>ol{max-width:72ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:grid;gap:12px;min-width:0}
+.card h3{font-size:1.02rem}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:.76rem;color:var(--muted);font-weight:600;letter-spacing:.02em;white-space:nowrap}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+tr.hl td{background:var(--accent-soft);font-weight:600}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit}
+.btn{text-decoration:none;display:inline-block;font-size:.9rem;font-weight:600;border-radius:8px;padding:7px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn:hover{border-color:var(--accent)}
+.btn[aria-pressed="true"],.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.small{font-size:.8rem;padding:3px 10px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dial{display:grid;gap:4px;min-width:0;align-content:start}
+.dial label{font-size:.86rem;font-weight:500;display:flex;justify-content:space-between;gap:8px}
+.dial label output{font-family:var(--f-mono);color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select,input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;min-width:0}
+.canvas-box{position:relative;min-width:0}
+.canvas-box canvas{width:100%;display:block;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.cap{font-size:.86rem;color:var(--muted)}
+.cap b{color:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;background:var(--c)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.76rem;padding:4px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-120%);z-index:5}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:8px}
+.stat>div{background:var(--sunken);border-radius:6px;padding:8px 12px;display:grid}
+.stat .l{font-size:.74rem;color:var(--muted)}
+.stat .v{font-size:1.25rem;font-weight:600;font-variant-numeric:tabular-nums}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:6.5em 1fr 4.2em;gap:8px;align-items:center;font-size:.84rem}
+.bar .track{position:relative;height:16px;background:var(--sunken);border-radius:4px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:var(--c,var(--accent));transition:width .25s}
+.bar .base{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.bar .v{font-family:var(--f-mono);text-align:right}
+@media (prefers-reduced-motion:reduce){.bar .fill{transition:none}}
+.cm{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;max-width:440px;font-variant-numeric:tabular-nums}
+.cm .h{font-size:.76rem;color:var(--muted);font-weight:600;display:flex;align-items:end;padding:2px 4px}
+.cm .rh{align-items:center}
+.cm .c{border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:grid;background:var(--surface)}
+.cm .c b{font-size:1.15rem}
+.cm .c span{font-size:.74rem;color:var(--muted)}
+.cm .c.ok{background:var(--safe-bg);border-color:transparent}
+.cm .c.bad{background:var(--risk-bg);border:2px solid var(--risk)}
+.cm .c.bad span{color:var(--risk);font-weight:600}
+.pill{display:inline-block;font-size:.74rem;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.pill.risk{background:var(--risk-bg);color:var(--risk)}.pill.safe{background:var(--safe-bg);color:var(--safe)}.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.pass{background:var(--safe-bg);color:var(--safe)}.pill.fail{background:var(--risk-bg);color:var(--risk)}
+.note{border-left:3px solid var(--warn);background:var(--warn-bg);padding:8px 14px;border-radius:0 6px 6px 0;font-size:.9rem}
+.note.info{border-color:var(--accent);background:var(--accent-soft)}
+.q{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;display:grid;gap:10px}
+.q .qt{font-weight:600}
+.q .opts{display:grid;gap:6px}
+.q .opts button{text-align:left;font-size:.92rem;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer}
+.q .opts button.right{border-color:var(--safe);background:var(--safe-bg)}
+.q .opts button.wrong{border-color:var(--risk);background:var(--risk-bg)}
+.q .fb{font-size:.9rem}
+.codebox{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.codebox .tabs{display:flex;flex-wrap:wrap;gap:2px;border-bottom:1px solid var(--line);background:var(--sunken);padding:6px 6px 0}
+.codebox .tabs button{border:0;background:none;padding:6px 12px;border-radius:6px 6px 0 0;cursor:pointer;color:var(--muted);font-size:.84rem;font-family:var(--f-mono)}
+.codebox .tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);font-weight:500}
+.codebox .tools{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);align-items:center}
+.codebox .tools span{font-size:.78rem;color:var(--muted);flex:1;min-width:12em}
+.codebox pre{margin:0;padding:14px 16px;overflow:auto;max-height:440px;font-size:.8rem;line-height:1.55;white-space:pre}
+details.run{border:1px solid var(--line);border-radius:var(--r);background:var(--sunken)}
+details.run summary{cursor:pointer;padding:8px 14px;font-size:.88rem;font-weight:500}
+details.run pre{margin:0;padding:10px 16px 14px;overflow:auto;font-size:.78rem;line-height:1.5}
+.gloss{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
+.gloss div{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px}
+.gloss dt{font-weight:600}.gloss dd{margin:2px 0 0;font-size:.88rem;color:var(--muted)}
+.gloss dd i{font-style:normal;color:var(--ink)}
+.prompt pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--sunken);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;font-size:.8rem;max-height:360px;overflow:auto;margin:0}
+.teach-link{display:inline-block;font-weight:600;text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:8px 14px}
+section.outro{margin-top:40px;padding-block:30px;border-top:1px solid var(--line)}
+.outro .scene{width:100%;max-width:720px;aspect-ratio:720/400;border-radius:var(--r)}
+.placeholder{display:grid;place-items:center;text-align:center;background:repeating-linear-gradient(135deg,var(--sunken) 0 12px,var(--surface) 12px 24px);border:1px dashed var(--line);color:var(--muted);font-size:.82rem;padding:10px}
+.nav-eps{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
+footer{border-top:1px solid var(--line);margin-top:30px;padding-block:22px 40px;font-size:.82rem;color:var(--muted)}
+footer .wrap{display:grid;gap:8px}
+.robo-w{align-items:center}
+.robo-w .av{flex-basis:64px;height:64px;font-size:1.4rem}
+.robo-w[data-st="wrong"] .av{--avc:var(--risk)}
+.robo-w[data-st="success"] .av{--avc:var(--safe)}
+.robo-w[data-st="confused"] .av{--avc:var(--warn)}
+.player{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.player input[type=range]{flex:1;min-width:140px}
+.stamp{justify-self:start;border:3px double currentColor;border-radius:4px;padding:6px 16px;font-weight:700;font-size:1.35rem;letter-spacing:.04em;transform:rotate(-2deg)}
+.stamp.risk{color:var(--risk)}.stamp.safe{color:var(--safe)}.stamp.reject{color:var(--warn)}
+@media (max-width:560px){body{font-size:15px}.part-head h2{font-size:1.2rem}.say .av{flex-basis:44px;height:44px}}
+.tagx{display:inline-block;font-size:.72rem;font-weight:600;background:var(--sunken);border-radius:4px;padding:0 6px;margin-right:4px;color:var(--muted)}
+.crewgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:14px}
+.crew{align-content:start}
+.crew .faces{position:relative;aspect-ratio:4/3;width:100%;overflow:hidden;border-radius:var(--r)}
+.crew .cf{position:absolute;inset:0;display:none;border-radius:var(--r);flex-direction:column;gap:4px}
+.crew .cf.on{display:grid;align-content:center}
+.crew .moods{display:flex;flex-wrap:wrap;gap:6px}
+.crew .moods button{width:44px;height:44px;border-radius:10px;border:2px solid var(--line);background:var(--sunken);cursor:pointer;display:grid;place-items:center;padding:0;line-height:1.1;color:var(--avc)}
+.crew .moods button small{font-size:.58rem;color:var(--muted)}
+.crew .moods button[aria-pressed="true"]{border-color:var(--avc)}
+.cline{font-weight:500}
+.keyvis{width:100%;aspect-ratio:1100/320;border-radius:var(--r)}
+.stops{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:14px}
+.stop{border-top:4px solid var(--kc)}
+.stop .pic{aspect-ratio:480/440;border-radius:6px}
+.stop .no{font-family:var(--f-pixel);color:var(--kc)}
+.bigq{font-size:1.15rem;font-weight:600;border-left:4px solid var(--accent);padding:6px 14px;background:var(--accent-soft);border-radius:0 8px 8px 0;max-width:72ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:grid;gap:12px;min-width:0;align-content:start}
+.task{border:1px solid var(--line);border-left:4px solid var(--data);background:var(--surface);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;display:grid;gap:8px}
+.task .tt{font-family:var(--f-pixel);font-size:.8rem;color:var(--data)}
+.task ul{margin:0;padding-left:1.2em}
+.answer{border:2px dashed var(--accent);border-radius:var(--r);padding:14px 18px;display:grid;gap:10px;background:var(--surface)}
+.answer .tt{font-weight:700;color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips span{font-size:.76rem;border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:var(--sunken)}
+.chips span.ban{border-color:var(--risk);color:var(--risk);background:var(--risk-bg)}
+
+:root{--c-under:var(--c-claim);--c-over:var(--c-no)}
+.say .sbub p b,.say .sbub li b,.say .sbub p strong{display:inline;font-size:inherit;color:inherit}
+.review{text-decoration:none;color:inherit;border-left:4px solid var(--seq)}
+.review:hover{border-color:var(--accent)}
+.scene.placeholder{width:100%;max-width:720px;aspect-ratio:9/5;border-radius:var(--r)}
+.keyvis.placeholder{width:100%;aspect-ratio:1100/320;border-radius:var(--r)}
+.pic.placeholder{width:100%;aspect-ratio:720/660;border-radius:6px}
+.otherpart{font-size:.78rem;text-decoration:none;border:1px dashed var(--seq);color:var(--seq);border-radius:999px;padding:2px 10px;background:var(--surface)}
+.box{border:1px solid var(--seq);background:var(--surface);border-radius:var(--r);padding:14px 18px;display:grid;gap:8px}
+.box .tt{font-family:var(--f-pixel);font-size:.78rem;color:var(--seq)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.form label{display:grid;gap:3px;font-size:.84rem;font-weight:500}
+.path{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.86rem}
+.path span{border:1px solid var(--line);border-radius:6px;padding:2px 8px;background:var(--sunken)}
+.path span.leaf{background:var(--accent-soft);border-color:var(--accent);font-weight:600}
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:18px;text-align:center;color:var(--muted);font-size:.9rem}
+.drop.on{border-color:var(--accent);background:var(--accent-soft)}
+.big{font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums}
+.mono{overflow-wrap:anywhere}
+@media (max-width:640px){nav.top .links{order:3;flex-basis:100%}}
+td.r.under{color:var(--c-under);font-weight:600}td.r.over{color:var(--c-over)}
+
+</style>
+</head>
+<body>
+<nav class="top"><div class="wrap"><a class="brand" href="index.html">인슈어테크 #4 실전<b>· 5</b></a><div class="links"><a href="#task">과제</a><a href="#ours">우리 꼬리</a><a href="#cases">사례</a><a href="#compare">비교</a><a href="#priorities">우선순위</a><a href="#answer">답안 틀</a><a href="#check">확인 문제</a><a href="#practice">코드</a><a href="#prompt">프롬프트</a><a href="#glossary">용어</a><a href="answers.html#a5">교육자용 정답</a></div><a class="otherpart" href="https://adminmrobo.github.io/ai-biz-insurtech-03/">1부 개념편 →</a><select id="lang-sel" aria-label="언어 선택" onchange="itSetLang(this.value,true)"><option value="ko" selected>한국어</option><option value="en">English</option><option value="zh">中文</option><option value="ja">日本語</option><option value="uz">O'zbekcha</option><option value="ru">Русский</option></select></div></nav><header class="hero"><div class="wrap hero-grid"><div class="series" aria-label="시리즈 편 목록"><a href="1_kfold_cv.html" class="">1 5-Fold 검증</a><a href="2_group_errors.html" class="">2 흡연자만 오차</a><a href="3_problems_fixes.html" class="">3 문제점·개선</a><a href="4_html_deploy.html" class="">4 HTML 배포</a><a href="5_similar_cases.html" class="on" aria-current="page">5 유사 사례</a><a class="otherpart" href="https://adminmrobo.github.io/ai-biz-insurtech-03/">↔ 1부 개념편 (인슈어테크 #3)</a></div><p class="kicker">EPISODE 5 · 과제 문항 5 · 정리형 · Heavy tails everywhere</p>
+<h1>꼬리가 긴 금액은 어디에나 있다</h1><p class="lead">과제 문항 5는 같은 구조, 곧 <b>오른쪽 꼬리가 긴 금액 + 소수 집단이 고액을 좌우</b>하는 사례를 찾아 이유와 해결 전략을 쓰라고 합니다. 이 편은 사례 네 건을 출처와 함께 정리하고, 공개 데이터가 있는 사례는 꼬리 비율을 <b>우리 데이터와 같은 방법으로 직접 계산</b>해 나란히 놓습니다.</p><div class="chat"><div class="say bomi"><div class="av" data-face="curious" aria-hidden="true"><img src="assets/av_bomi_curious.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>조교</b><p>과제 5번은 비슷한 사례를 찾아오래요. 꼬리가 긴 금액, 의료비 말고도 있어요?</p></div></div><div class="say actuary"><div class="av" data-face="explain" aria-hidden="true"><img src="assets/av_actuary_explain.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>박사<span class="npc" title="NPC">NPC</span></b><p>(손바닥을 든다) …있습니다. 다만 ‘얼마나 긴 꼬리인지’는 숫자로 비교합시다. 우리 데이터는 상위 1%가 금액의 3.9%, 프랑스 자동차보험 손해액은 38.0% 입니다. 기준선부터 봅시다 — 여기서 기준선은 우리 데이터예요.</p></div></div><div class="say robo"><div class="av" data-face="thinking" aria-hidden="true"><img src="assets/av_robo_thinking.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>머니로보</b><p>삐빅. 상위 1% 비율로 순위를 매겨 드릴까요? 1등 상품은 없습니다. 저는 돈을 안 받으니까요.</p></div></div></div><p class="byline">글 · 안상선 ((주)M-Robo 대표) · AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전</p><div class="guide"><span style="--c:var(--c-claim)">우리 데이터</span><span style="--c:var(--c-no)">자동차보험 손해액</span><span style="--c:var(--c-3)">재보험 대형사고</span><span style="--c:var(--c-4)">MEPS · 출처 값</span></div></div></header><main><section class="part" id="task"><div class="wrap"><div class="part-head" style="--kc:var(--data)"><div class="hex">0</div><h2>과제 문항 5<span class="en">Assignment 5</span></h2><p>무엇을 내야 하는지 먼저 확인합니다.</p></div><div class="body"><div class="task"><span class="tt">ASSIGNMENT · 문항 5</span><h3>유사 사례를 찾고, 그 이유 및 해결 전략 기술</h3><div class="chips"><span class="">사례 2건 이상</span><span class="">출처 표기 필수</span><span class="">우선순위 3개 이내</span></div><ul><li>실제 산업 · 학계에서 오른쪽 꼬리가 긴 금액 타깃 + 소수 집단이 고액을 좌우하는 구조의 회귀 사례를 2건 이상 찾음 (의료비 예측, 자동차보험 손해액, 주택 가격, 보험료 산정의 공정성 등)</li><li>각 사례마다 (a) 요약과 출처, (b) 이 데이터와 구조적으로 같은 점, (c) 왜 그런 문제가 생기는지, (d) 실무에서 쓰는 해결 전략(감마 · 트위디 GLM, 분위 회귀, 로그 변환 등)을 기술</li><li>마지막에 본 과제 데이터에 적용할 수 있는 해결 전략 우선순위 3개 이내로 정리</li></ul></div><p>이 편은 사례 <b>4건</b>을 준비했습니다: 자동차보험 손해액 · 재보험 대형사고 · 병원 재원일수 · 의료비 지출 집중. 출처는 모두 직접 열어 확인했고, 공개 데이터가 있는 두 사례는 데이터 파일을 직접 읽어 꼬리 비율을 우리 데이터와 <b>같은 방법으로</b> 계산했습니다. 학생은 출처를 직접 열어 보고 본인 말로 다시 쓰세요.</p><a class="card review" href="https://adminmrobo.github.io/ai-biz-insurtech-03/4_margin_lab.html"><span class="tagx">1부 4편 복습</span><h3>여유분과 비용 실험실</h3><p class="cap">과소 추정 1달러를 과대 추정 1달러보다 3배 비싸게 보는 실험실. 꼬리가 긴 금액에서 ‘적게 잡는’ 비용을 다룹니다.</p></a></div></div></section><section class="part" id="ours"><div class="wrap"><div class="part-head" style="--kc:var(--data)"><div class="hex">1</div><h2>먼저 우리 데이터의 꼬리<span class="en">Our baseline tail</span></h2><p>사례와 비교할 기준: 같은 지표를 우리 데이터에서 먼저 잽니다.</p></div><div class="body"><div class="stat"><div><span class="l">상위 1% 의 금액 비율</span><span class="v">3.9%</span></div><div><span class="l">상위 10% 의 금액 비율</span><span class="v">31.8%</span></div><div><span class="l">하위 50% 의 금액 비율</span><span class="v">18.5%</span></div><div><span class="l">평균 ÷ 중앙값</span><span class="v">1.41배</span></div><div><span class="l">흡연자: 사람 → 금액</span><span class="v">20.5% → 49.5%</span></div></div><p><b>꼬리 비율(tail share)</b>은 금액이 큰 사람부터 줄을 세웠을 때 앞쪽 몇 %가 전체 금액의 몇 %를 차지하는지입니다. 모두 같은 금액이면 상위 1%는 1%를 차지합니다(대각선). 위로 볼록할수록 소수에게 몰린 것입니다.</p><div class="btns" role="group" aria-label="곡선 고르기"><button class="btn" data-cv="all" aria-pressed="true">모두 겹쳐 보기</button><button class="btn" data-cv="ours" aria-pressed="false">우리 데이터만</button></div><div class="canvas-box"><canvas id="conc-cv" aria-label="사람 비율에 따른 누적 금액 비율 곡선: 우리 데이터, 자동차보험 손해액, 덴마크 화재 손해, 그리고 병원 재원일수와 MEPS 의 출처 값 점"></canvas><div class="tip" id="conc-cv-tip" hidden></div></div><div class="legend" id="conc-legend"></div><p class="cap" id="conc-cap" aria-live="polite"></p><p class="note info">흡연자는 사람의 20.5% 이지만 금액의 49.5% 를 씁니다. 우리 데이터에서 ‘금액을 좌우하는 소수 집단’은 흡연자, 그중에서도 BMI 30 이상인 사람들입니다(1부 1편의 맨 위 띠).</p></div></div></section><section class="part" id="cases"><div class="wrap"><div class="part-head" style="--kc:var(--core)"><div class="hex">2</div><h2>사례 네 건<span class="en">Four similar cases</span></h2><p>버튼으로 사례를 바꿔 보세요. 각 사례는 (a) 요약 · 출처 (b) 같은 점 (c) 왜 생기나 (d) 실무 전략 순서입니다.</p></div><div class="body"><div class="btns" role="group" aria-label="사례 고르기"><button class="btn" data-case="motor" aria-pressed="true">자동차보험 손해액</button><button class="btn" data-case="reins" aria-pressed="false">재보험 대형사고</button><button class="btn" data-case="los" aria-pressed="false">병원 재원일수</button><button class="btn" data-case="meps" aria-pressed="false">의료비 지출 집중</button></div><div id="case-out" aria-live="polite" style="min-width:0"></div><p class="note">사례의 숫자는 각 출처의 값이거나, 공개 데이터 파일을 f5.py 로 직접 계산한 값입니다. 어느 쪽인지 사례마다 ‘숫자 메모’에 적었습니다. 사례 논문이 데이터를 자르거나 합성했더라도 이 시리즈는 증강 · 합성 · 목표값 자르기를 쓰지 않습니다.</p></div></div></section><section class="part" id="compare"><div class="wrap"><div class="part-head" style="--kc:var(--data)"><div class="hex">3</div><h2>한 표로 비교<span class="en">Side by side</span></h2><p>같은 잣대(꼬리 비율)로 나란히 놓으면 우리 데이터의 위치가 보입니다.</p></div><div class="body"><div class="tblwrap"><table><thead><tr><th>사례</th><th class="r">건수</th><th class="r">상위 1% 비율</th><th class="r">상위 10% 비율</th><th>평균 ÷ 중앙값</th><th>숫자 출처</th></tr></thead><tbody><tr class="hl"><td><b>우리 데이터</b> (건강보험 의료비)</td><td class="r">1,337</td><td class="r">3.9%</td><td class="r">31.8%</td><td>1.41</td><td>직접 계산 (f5)</td></tr><tr><td>자동차보험 손해액 (freMTPL2sev)</td><td class="r">26,444</td><td class="r">38.0%</td><td class="r">59.9%</td><td>1.93</td><td>직접 계산 (f5)</td></tr><tr><td>재보험 대형사고 (danish)</td><td class="r">2,167</td><td class="r">17.2%</td><td class="r">46.0%</td><td>1.90</td><td>직접 계산 (f5)</td></tr><tr><td>병원 재원일수 (Freitas 2012)</td><td class="r">9,253,087</td><td class="r">—</td><td class="r">상위 3.9% → 19.2%</td><td>— (평균: 이상치 35.5일 · 나머지 6.0일)</td><td>논문 값</td></tr><tr><td>의료비 지출 집중 (MEPS 2022)</td><td class="r">—</td><td class="r">21.7%</td><td class="r">65.9%</td><td>—</td><td>보고서 값</td></tr></tbody></table></div><div class="cols"><div class="card"><h3>공통 구조</h3><p>네 사례 모두 <b>금액(또는 기간)이 오른쪽으로 길고</b>, <b>소수가 전체의 큰 몫</b>을 차지합니다. 그래서 평균 하나로 보고하면 소수의 큰 값이 숨고(1부 1편), 오차가 큰 사람도 소수에 몰립니다(2부 2편).</p></div><div class="card"><h3>우리 데이터의 위치</h3><p>우리 데이터의 꼬리는 <b>가벼운 편</b>입니다: 상위 1% 비율 3.9% 는 자동차보험(38.0%) · 재보험(17.2%) · MEPS(21.7%)보다 훨씬 작습니다. 최댓값이 $63,770 에서 멈추고 0 원도 없기 때문입니다. 대신 ‘흡연’이라는 한 집단이 금액의 절반을 가집니다.</p></div><div class="card"><h3>그래서 전략도 다르다</h3><p>꼬리가 아주 무거운 재보험은 극값 이론(EVT)이 필요하지만, 우리 데이터는 그 전에 <b>소수 집단의 모양(흡연 × 비만)</b>을 모델에 넣는 것이 먼저입니다. 꼬리의 무게를 재고 전략을 고릅니다.</p></div></div></div></div></section><section class="part" id="priorities"><div class="wrap"><div class="part-head" style="--kc:var(--seq)"><div class="hex">4</div><h2>해결 전략 우선순위 3개<span class="en">Priorities for this data</span></h2><p>과제의 마지막 요구: 본 과제 데이터에 적용할 전략, 3개 이내.</p></div><div class="body"><div class="tblwrap"><table><thead><tr><th>우선순위</th><th>무엇을</th><th>확인 지표</th><th>사례 근거</th></tr></thead><tbody><tr><td>1. 소수 집단의 모양을 모델에 넣기</td><td>흡연 × 비만(BMI 30 이상) 상호작용, 또는 경계를 스스로 찾는 트리 모델</td><td>흡연자 MAE · 상위 10% MAE (2부 2 · 3편)</td><td>MEPS: 고액 지출자 집단의 특성을 따로 분석 · 우리 데이터: 흡연자 20.5% 가 금액의 49.5%</td></tr><tr><td>2. 평균 하나로 보고하지 않기</td><td>그룹별 · 금액 구간별 오차, 과소 추정 비율과 비용(과소 : 과대 = 3 : 1)</td><td>그룹별 MAE · 평균 잔차 · 과소 추정 비용 (2부 2편, 1부 4편)</td><td>Freitas 2012: 3.9% 의 장기 재원이 입원일수의 19.2% — 평균만 보면 숨는다</td></tr><tr><td>3. 목표 분포에 맞는 손실 · 모델 고르기</td><td>감마 · 트위디 GLM 또는 분위 회귀. 로그 변환은 달러로 되돌려 그룹별로 검증. 극단 꼬리(EVT)는 이 데이터에는 아직 필요 없음</td><td>달러 기준 5-Fold MAE · R² · 그룹별 역변환 편향 (2부 1 · 4편)</td><td>freMTPL: 심도에 감마 GLM · McNeil 1997: 극단 꼬리는 따로. 우리 상위 1% 비율은 3.9% 로 가벼운 편</td></tr></tbody></table></div><div class="chat"><div class="say bomi"><div class="av" data-face="proud" aria-hidden="true"><img src="assets/av_bomi_proud.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>조교</b><p>3번에 ‘EVT 는 아직 필요 없음’이라고 쓴 게 마음에 들어요. 무조건 어려운 걸 쓰는 게 아니네요.</p></div></div><div class="say actuary"><div class="av" data-face="note" aria-hidden="true"><img src="assets/av_actuary_note.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>박사<span class="npc" title="NPC">NPC</span></b><p>(손바닥을 든다) …꼬리 비율을 먼저 재고 고른 겁니다. 상위 1% 가 3.9% 인 데이터와 38.0% 인 데이터는 같은 약을 먹지 않습니다.</p></div></div></div></div></div></section><section class="part" id="answer"><div class="wrap"><div class="part-head" style="--kc:var(--seq)"><div class="hex">5</div><h2>보고서 답안 틀<span class="en">Answer template</span></h2><p>사례마다 같은 칸을 채웁니다. 빈칸은 본인이 확인한 출처의 값으로.</p></div><div class="body"><div class="answer"><span class="tt">✎ 보고서 답안 틀 (숫자는 본인 실행 결과로 바꾸세요)</span><p><b>표 1.</b> 사례 요약 (사례 2건 이상)</p><div class="tblwrap"><table><thead><tr><th></th><th>사례 1</th><th>사례 2</th></tr></thead><tbody><tr><td>분야 · 사례 이름</td><td>＿＿</td><td>＿＿</td></tr><tr><td>(a) 요약 · 출처(제목 · 저자/기관 · 연도 · URL)</td><td>＿＿</td><td>＿＿</td></tr><tr><td>꼬리 지표(상위 ＿% 가 ＿% 차지 등)</td><td>＿＿</td><td>＿＿</td></tr><tr><td>(b) 이 데이터와 같은 점</td><td>＿＿</td><td>＿＿</td></tr><tr><td>(c) 왜 생기나</td><td>＿＿</td><td>＿＿</td></tr><tr><td>(d) 실무 해결 전략</td><td>＿＿</td><td>＿＿</td></tr></tbody></table></div><p><b>서술 틀.</b> “우리 데이터는 상위 1%가 금액의 ＿＿%, 흡연자(＿＿%)가 금액의 ＿＿%를 차지한다. 사례 ＿＿ 에서는 ＿＿ 가 ＿＿% 를 차지해 꼬리가 (더 무겁다 / 더 가볍다). 따라서 본 과제에는 ① ＿＿(확인 지표 ＿＿) ② ＿＿(＿＿) ③ ＿＿(＿＿) 순서로 적용한다.”</p><p class="cap">출처의 숫자와 본인이 계산한 숫자를 구분해 쓰세요. 서로 다른 해의 숫자를 섞었으면 그렇다고 쓰세요.</p></div></div></div></section><section class="part" id="check"><div class="wrap"><div class="part-head" style="--kc:var(--core)"><div class="hex">6</div><h2>확인 문제<span class="en">Check</span></h2><p>정답을 고르면 이 페이지의 실제 숫자로 해설합니다.</p></div><div class="body"><div class="q" id="q5-1" data-ok="1" data-ex="같은 방법(금액 큰 순서로 상위 1% 의 합 ÷ 전체 합)으로 계산했습니다: 우리 3.9%, freMTPL2sev 38.0%, danish 17.2%."><p class="qt">Q1. 우리 데이터의 상위 1% 비율은 3.9%, 프랑스 자동차보험 손해액은 38.0% 입니다. 가장 알맞은 해석은?</p><div class="opts"><button data-i="0" data-why="10배 가까이 다릅니다. 상위 1% 가 38.0% 를 가지는 데이터는 몇 건의 손해가 전체를 흔듭니다.">두 데이터의 꼬리 무게는 비슷하다</button><button data-i="1">자동차보험 손해액의 꼬리가 훨씬 무거워, 몇 건의 대형 손해가 전체 금액을 크게 좌우한다</button><button data-i="2" data-why="우리 데이터도 평균이 중앙값의 1.41배이고 상위 10% 가 31.8% 를 차지합니다. 가벼운 편일 뿐입니다.">우리 데이터에는 꼬리가 없다</button></div><p class="fb" aria-live="polite"></p></div><div class="q" id="q5-2" data-ok="1" data-ex="고액은 오류가 아니라 꼬리입니다. 자르면 예측 합계와 고액 오차가 실제보다 좋아 보입니다. 대신 대형 손해를 분리하거나(재보험) 꼬리를 따로 맞춥니다(EVT)."><p class="qt">Q2. scikit-learn 의 자동차보험 예제는 손해액을 200,000 에서 잘라(clip) 학습합니다. 이 시리즈에서 같은 일을 하지 않는 이유는?</p><div class="opts"><button data-i="0" data-why="예제는 계산 편의를 위해 자른다고 밝혔습니다. 틀린 것이 아니라 목적이 다릅니다.">예제가 틀렸기 때문</button><button data-i="1">목표값을 자르면 큰 손해를 덜 예측하는 모델이 되고, 그 차이가 숨겨지기 때문. 대형 손해는 따로 모델링한다</button><button data-i="2" data-why="그것은 우연입니다. 원칙은 ‘목표값은 자르지 않는다’입니다.">우리 데이터에는 200,000 이 넘는 값이 없어서</button></div><p class="fb" aria-live="polite"></p></div><div class="q" id="q5-3" data-ok="1" data-ex="우리 데이터의 흡연자(20.5% → 금액 49.5%)와 같은 구조입니다. 그래서 그룹별 · 구간별 오차를 따로 보고합니다(우선순위 2)."><p class="qt">Q3. 포르투갈 병원 연구에서 장기 재원 3.9%가 입원일수의 19.2%를 차지했습니다. 평균 재원일수만 보고하면 생기는 문제는?</p><div class="opts"><button data-i="0" data-why="평균은 반영하지만 ‘누가’ 큰 몫을 쓰는지는 숨깁니다. 이상치 평균 35.5일, 나머지 6.0일.">문제없다. 평균은 모든 입원을 반영한다</button><button data-i="1">소수의 장기 재원이 전체를 끌어올리는 구조가 숨어, 관리해야 할 집단을 놓친다</button><button data-i="2" data-why="실제 입원입니다. 논문도 지우지 않고 따로 분류해 요인을 분석했습니다.">장기 재원은 오류이므로 지워야 한다</button></div><p class="fb" aria-live="polite"></p></div><div class="q" id="q5-4" data-ok="1" data-ex="0 원이 많은 실제 의료비에서는 ‘쓸까 · 얼마나’를 나누는 2단계 모델이 필요합니다. 이 데이터는 0 원이 없어서 한 단계 회귀로 충분했습니다."><p class="qt">Q4. MEPS 2022 에서 하위 50%는 의료비의 2.8%만 썼지만, 우리 데이터의 하위 50%는 18.5% 를 씁니다. 가장 그럴듯한 이유는?</p><div class="opts"><button data-i="0" data-why="데이터에 없는 사실을 단정하는 해석입니다.">우리 데이터의 사람들이 더 건강하지 않아서</button><button data-i="1">우리 데이터에는 의료비가 0 원인 사람이 없고(최소 $1,122) 최댓값도 $63,770 에서 멈춰, 금액이 덜 몰려 있다</button><button data-i="2" data-why="보고서 값입니다. 두 자료의 대상과 구성이 다를 뿐입니다.">MEPS 의 숫자가 틀렸다</button></div><p class="fb" aria-live="polite"></p></div></div></div></section><section class="part" id="practice"><div class="wrap"><div class="part-head" style="--kc:var(--seq)"><div class="hex">7</div><h2>실무로 잇기<span class="en">From page to Colab</span></h2><p>이 페이지의 꼬리 비율을 만든 코드.</p></div><div class="body"><p>e5.py 는 함수 · 반복문 · if · 들여쓰기 없이 우리 데이터의 꼬리 비율과 그룹별 금액 비율, 집중 곡선을 그립니다. 맨 위 <b>[다이얼]</b>로 상위 몇 % 를 볼지와 그룹 열을 바꿉니다. f5.py 는 같은 지표를 공개 데이터 두 개(freMTPL2sev · danish)에서도 계산합니다(Colab 에서는 <span class="mono">pip install pyreadr</span> 필요, 없으면 우리 데이터만 계산).</p><div class="codebox"><div class="tabs" role="tablist"><button role="tab" data-src="src-e5" data-info="초보용 · def·for·if·들여쓰기 없음 · 다이얼: TOP_SHARE, GROUP_COLUMN">e5.py</button><button role="tab" data-src="src-f5" data-info="정식 코드 · common.py 필요 · 외부 데이터는 pyreadr 로 읽음">f5.py</button><button role="tab" data-src="src-common" data-info="공통 코드 · 1부와 2부가 같은 파일">common.py</button></div><div class="tools"><span></span><button class="btn small" data-act="copy">복사</button><button class="btn small" data-act="py">.py 받기</button><button class="btn small" data-act="nb">.ipynb 받기</button></div><pre><code></code></pre></div><script type="text/plain" id="src-e5" data-file="e5.py" data-formal="0">
+# AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전 · 초보용 코드 e5.py
+# 5편 「꼬리가 긴 금액은 어디에나 있다」 (과제 문항 5)
+# 함수 · 반복문 · if 문 · 들여쓰기 없이 위에서 아래로 읽습니다. 맨 위 [다이얼] 줄만 바꿔 다시 실행하세요.
+
+# ① 다이얼
+TOP_SHARE = 0.01        # [다이얼] 상위 몇 % 의 금액 비율을 볼까 (0.01 = 상위 1%)
+GROUP_COLUMN = "smoker"  # [다이얼] 금액 비율을 볼 그룹 열: "smoker" 또는 "sex" 또는 "region"
+
+# ② 데이터 읽기 · 같은 행 1건 빼기
+import numpy as np
+import pandas as pd
+df = pd.read_csv("https://raw.githubusercontent.com/fintech-data/Revolution/main/data/insurance.csv")
+df = df.drop_duplicates().reset_index(drop=True)
+y = df["charges"].sort_values(ascending=False).values
+print("rows:", len(y), " mean:", round(y.mean()), " median:", round(np.median(y)), " mean/median:", round(y.mean() / np.median(y), 2))
+
+# ③ 꼬리 지표: 상위 TOP_SHARE 가 전체 금액에서 차지하는 비율
+k = max(1, int(len(y) * TOP_SHARE))
+print("top", TOP_SHARE, "people:", k, " share of total charges:", round(y[:k].sum() / y.sum(), 4))
+print("top 10% share:", round(y[:int(len(y) * 0.10)].sum() / y.sum(), 4))
+print("bottom 50% share:", round(y[len(y) - len(y) // 2:].sum() / y.sum(), 4))
+
+# ④ 그룹별 사람 비율과 금액 비율
+table = pd.DataFrame({"people_share": df[GROUP_COLUMN].value_counts(normalize=True), "amount_share": df.groupby(GROUP_COLUMN)["charges"].sum() / df["charges"].sum()})
+print(table.round(4))
+
+# ⑤ 그림: 누적 금액 곡선 (사람을 금액 큰 순서로 세웠을 때)
+import matplotlib.pyplot as plt
+plt.plot(np.arange(1, len(y) + 1) / len(y), np.cumsum(y) / y.sum())
+plt.xlabel("share of people (largest first)")
+plt.ylabel("share of total charges")
+plt.title("How concentrated are medical charges?")
+plt.show()
+</script><script type="text/plain" id="src-f5" data-file="f5.py" data-formal="1">
+"""
+AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전 · 정식 코드 f5.py
+5편 「꼬리가 긴 금액은 어디에나 있다」 (과제 문항 5)
+무엇을, 어떤 순서로:
+ ① 우리 데이터(1,337행)의 꼬리 지표: 상위 1% · 10% 가 전체 금액에서 차지하는 비율, 하위 50% 비율,
+    흡연자(20.5%)가 차지하는 금액 비율, 평균 / 중앙값, 왜도
+ ② 같은 지표를 공개 데이터 두 개에서 직접 계산 (pyreadr 가 있으면)
+    - 프랑스 자동차보험 대인배상 손해액 freMTPL2sev (CASdatasets)
+    - 덴마크 화재 대형 손해 danish (evir 패키지, Copenhagen Re)
+ ③ 결과를 사례 카드(cases.json)의 tail_share 칸과 비교한다
+"""
+import io
+import urllib.request
+import numpy as np
+import pandas as pd
+import common as C
+
+EXTERNAL = {
+    "freMTPL2sev": "https://raw.githubusercontent.com/dutangc/CASdatasets/master/data/freMTPL2sev.rda",
+    "danish": "https://raw.githubusercontent.com/cran/evir/master/data/danish.rda",
+}
+
+
+def tail(x):
+    x = np.sort(np.asarray(x, float))[::-1]
+    n, s = len(x), x.sum()
+    k1, k10, k50 = max(1, int(n * 0.01)), max(1, int(n * 0.10)), n // 2
+    return {"n": n, "mean": float(x.mean()), "median": float(np.median(x)), "max": float(x[0]),
+            "top1": float(x[:k1].sum() / s), "top10": float(x[:k10].sum() / s), "bottom50": float(x[n - k50:].sum() / s),
+            "mean_over_median": float(x.mean() / np.median(x)), "skew": float(pd.Series(x).skew()),
+            # 집중 곡선: 금액 큰 사람부터 세웠을 때, 상위 p% 가 차지하는 금액 비율 (p = 0, 1, …, 100%)
+            "curve": [0.0] + [float(x[:max(1, int(round(n * p / 100)))].sum() / s) for p in range(1, 101)]}
+
+
+def load_external(name):
+    try:
+        import pyreadr
+        raw = urllib.request.urlopen(EXTERNAL[name], timeout=30).read()
+        path = "/tmp/_%s.rda" % name
+        open(path, "wb").write(raw)
+        r = pyreadr.read_r(path)
+        df = list(r.values())[0]
+        return df.select_dtypes("number").iloc[:, -1].values
+    except Exception as e:
+        print("  (%s 를 읽지 못했습니다: %s)" % (name, type(e).__name__))
+        return None
+
+
+def run(verbose=True):
+    df, X, y, info = C.load_clean_xy()
+    ours = tail(y)
+    smk = df["smoker"] == "yes"
+    ours["smoker_people"] = float(smk.mean())
+    ours["smoker_amount"] = float(y[smk].sum() / y.sum())
+    ext = {}
+    for name in EXTERNAL:
+        v = load_external(name)
+        if v is not None:
+            ext[name] = tail(v)
+    if verbose:
+        print("[ours] n=%d mean=%.0f median=%.0f max=%.0f mean/median=%.2f skew=%.2f" % (
+            ours["n"], ours["mean"], ours["median"], ours["max"], ours["mean_over_median"], ours["skew"]))
+        print("  top 1%% share=%.4f  top 10%% share=%.4f  bottom 50%% share=%.4f" % (ours["top1"], ours["top10"], ours["bottom50"]))
+        print("  smokers: %.1f%% of people, %.1f%% of total charges" % (ours["smoker_people"] * 100, ours["smoker_amount"] * 100))
+        for k, t in ext.items():
+            print("[%s] n=%d mean=%.2f median=%.2f max=%.2f mean/median=%.2f" % (k, t["n"], t["mean"], t["median"], t["max"], t["mean_over_median"]))
+            print("  top 1%% share=%.4f  top 10%% share=%.4f  bottom 50%% share=%.4f" % (t["top1"], t["top10"], t["bottom50"]))
+    return {"ours": ours, "ext": ext}
+
+
+if __name__ == "__main__":
+    run()
+</script><script type="text/plain" id="src-common" data-file="common.py" data-formal="0">
+"""
+AI(인공지능) x 비즈니스 #1 인슈어테크_03_회귀모델 · 인슈어테크_04_회귀모델_실전 · 공통 코드 (common.py)
+글 · 안상선 ((주)M-Robo 대표) · CC BY-NC 4.0
+
+두 시리즈(1부 개념편 · 2부 문제편)가 똑같이 쓰는 파일입니다. 정리 규칙이 두 부에서 같아야 숫자를 비교할 수 있습니다.
+
+하는 일
+ ① 건강보험 의료비 데이터 읽기 (공개 학습용 데이터, 1,338행 × 7열)
+    읽는 순서: 내 컴퓨터의 data/insurance.csv -> 이 저장소의 raw 주소 -> 원 출처 주소
+ ② 정리 규칙: 완전히 같은 행 1건만 뺀다. 목표값(charges)은 자르거나 고치지 않는다.
+ ③ 범주형 원-핫 인코딩(drop_first) -> 특성 8개
+ ④ 1부의 학습/시험 나누기: charges 10분위로 층화한 80:20, random_state=42 (data/split.csv 와 같음)
+ ⑤ 기준선: 모두에게 "학습 데이터 평균"만 답하기
+ ⑥ (선택) 흡연 x 비만(BMI 30 이상) 상호작용 특성 만들기 - 2부 3·4편에서 씀
+
+원칙: 데이터 증강(합성 행 · 행 복제 · 정답에 잡음 넣기)은 쓰지 않는다. 원본 행만 쓴다.
+"""
+import os
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split, StratifiedKFold
+
+LOCAL_PATHS = ["data/insurance.csv", "../data/insurance.csv", "insurance.csv"]
+REPO_URL = "https://raw.githubusercontent.com/adminmrobo/ai-biz-insurtech-03/main/data/insurance.csv"
+SOURCE_URL = "https://raw.githubusercontent.com/fintech-data/Revolution/main/data/insurance.csv"
+SOURCE_MD5 = "d5364d06246fb4bfa4cc7d1ee89ebd0d"
+SEED = 42
+TARGET = "charges"
+NUM_COLS = ["age", "bmi", "children"]
+CAT_COLS = ["sex", "smoker", "region"]
+BMI_OBESE = 30.0   # WHO 성인 비만 기준 (BMI 30 이상)
+
+
+def load_raw(path=None):
+    """① 원본 데이터 읽기. path 를 주지 않으면 로컬 -> 저장소 -> 원 출처 순서로 찾는다."""
+    if path is None:
+        path = os.environ.get("INS_DATA")
+    if path:
+        return pd.read_csv(path)
+    for p in LOCAL_PATHS:
+        if os.path.exists(p):
+            return pd.read_csv(p)
+    for url in (REPO_URL, SOURCE_URL):
+        try:
+            return pd.read_csv(url)
+        except Exception:
+            pass
+    raise FileNotFoundError("insurance.csv 를 찾지 못했습니다.")
+
+
+def clean(df, verbose=False):
+    """② 정리 규칙. 바뀌는 행 수를 info 에 남긴다.
+
+    - 완전히 같은 행(7개 열이 모두 같음) 1건 -> 뒤의 것을 뺀다
+      (같은 사람이 학습과 시험에 동시에 들어가 점수가 부풀려지는 것을 막기 위해)
+    - charges(목표값): 고액도 그대로 둔다. 자르거나(상한) 지우지 않는다.
+    - bmi IQR 밖 9명(최대 53.13): 사람에게 가능한 값이라 그대로 둔다.
+    - 결측: 없음
+    """
+    n0 = len(df)
+    dup_mask = df.duplicated(keep="first")
+    dup_rows = list(df.index[dup_mask])
+    out = df.loc[~dup_mask].copy()
+    q1, q3 = out[TARGET].quantile([0.25, 0.75])
+    iqr = q3 - q1
+    tgt_iqr = int(((out[TARGET] < q1 - 1.5 * iqr) | (out[TARGET] > q3 + 1.5 * iqr)).sum())
+    b1, b3 = out["bmi"].quantile([0.25, 0.75])
+    biqr = b3 - b1
+    bmi_iqr = int(((out["bmi"] < b1 - 1.5 * biqr) | (out["bmi"] > b3 + 1.5 * biqr)).sum())
+    info = {"rows_raw": n0, "dropped_duplicate_rows": dup_rows, "rows_clean": len(out),
+            "missing": int(df.isna().sum().sum()),
+            "charges_iqr_flagged_kept": tgt_iqr, "bmi_iqr_flagged_kept": bmi_iqr,
+            "charges_changed": 0}
+    if verbose:
+        print("rule | rows changed")
+        print("drop exact duplicate | %d (row %s)" % (len(dup_rows), dup_rows))
+        print("charges IQR flagged, kept as is | %d" % tgt_iqr)
+        print("bmi IQR flagged, kept as is | %d" % bmi_iqr)
+        print("missing values | %d" % info["missing"])
+    return out, info
+
+
+def encode(df):
+    """③ X(원-핫, drop_first) 와 y(charges) 만들기. 열 순서는 고정."""
+    y = df[TARGET].astype(float)
+    X = pd.get_dummies(df.drop(columns=TARGET), columns=CAT_COLS, drop_first=True).astype(float)
+    cols = ["age", "bmi", "children", "sex_male", "smoker_yes",
+            "region_northwest", "region_southeast", "region_southwest"]
+    for c in cols:
+        if c not in X.columns:
+            X[c] = 0.0
+    return X[cols], y
+
+
+def add_interactions(X):
+    """⑥ 흡연 x 비만 상호작용. 흡연자이면서 BMI 30 이상인 사람의 의료비가 따로 뛰는 것을 직선 모델이 잡게 한다."""
+    X = X.copy()
+    X["bmi30"] = (X["bmi"] >= BMI_OBESE).astype(float)
+    X["smoker_bmi30"] = X["smoker_yes"] * X["bmi30"]
+    X["smoker_bmi"] = X["smoker_yes"] * X["bmi"]
+    return X
+
+
+def strata(y, q=10):
+    """분위 층화용 꼬리표: 금액을 q 개 구간으로 나눈 번호."""
+    return pd.qcut(y, q, labels=False, duplicates="drop")
+
+
+def split(X, y):
+    """④ 1부의 학습/시험 나누기 (charges 10분위 층화, 80:20, random_state=42)."""
+    return train_test_split(X, y, test_size=0.2, stratify=strata(y), random_state=SEED)
+
+
+def folds(y, n_splits=5):
+    """2부의 5-Fold: charges 10분위로 층화한 StratifiedKFold(shuffle=True, random_state=42)."""
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=SEED)
+    return list(skf.split(np.zeros(len(y)), strata(y)))
+
+
+def baseline(y_train, n):
+    """⑤ 기준선: 모두에게 학습 데이터 평균만 답한다."""
+    return np.full(n, float(np.mean(y_train)))
+
+
+def metrics(y, p):
+    """주지표 + 보조 지표. MAE 를 주지표로, RMSE · R² · 고액(상위 10%) MAE · 과소 추정 비율을 함께."""
+    y = np.asarray(y, float)
+    p = np.asarray(p, float)
+    e = y - p
+    top = y >= np.quantile(y, 0.9)
+    ss_res = float(np.sum(e ** 2))
+    ss_tot = float(np.sum((y - y.mean()) ** 2))
+    return {"MAE": float(np.mean(np.abs(e))), "RMSE": float(np.sqrt(np.mean(e ** 2))),
+            "R2": 1 - ss_res / ss_tot, "MAE_top10": float(np.mean(np.abs(e[top]))),
+            "under_rate": float(np.mean(p < y)), "bias": float(np.mean(p - y))}
+
+
+# 최종 모델 설정: 1부 3편에서 "학습 데이터만" 5-Fold 교차검증(MAE)으로 고른 값
+# (n_estimators 100/200/300 x max_depth 2/3/4 x learning_rate 0.05/0.1 중 1위)
+FINAL_PARAMS = {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.05, "random_state": SEED}
+
+MODEL_NAMES = ["Linear", "Ridge", "Decision Tree", "KNN", "Gradient Boosting"]
+MODEL_KO = {"Linear": "선형 회귀", "Ridge": "릿지", "Decision Tree": "의사결정나무", "KNN": "KNN",
+            "Gradient Boosting": "그래디언트 부스팅"}
+
+
+def models():
+    """두 부가 같이 쓰는 모델 다섯. 표준화가 필요한 모델은 Pipeline 안에서 학습 데이터에만 fit."""
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.linear_model import LinearRegression, Ridge
+    from sklearn.tree import DecisionTreeRegressor
+    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.ensemble import GradientBoostingRegressor
+    return {
+        "Linear": make_pipeline(StandardScaler(), LinearRegression()),
+        "Ridge": make_pipeline(StandardScaler(), Ridge(alpha=1.0)),
+        "Decision Tree": DecisionTreeRegressor(max_depth=4, random_state=SEED),
+        "KNN": make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=10)),
+        "Gradient Boosting": GradientBoostingRegressor(**FINAL_PARAMS),
+    }
+
+
+def final_model():
+    from sklearn.ensemble import GradientBoostingRegressor
+    return GradientBoostingRegressor(**FINAL_PARAMS)
+
+
+def load_clean_xy():
+    """한 줄로: 읽기 -> 정리 -> X, y (원본 행 번호를 index 로 유지)."""
+    df, info = clean(load_raw())
+    X, y = encode(df)
+    return df, X, y, info
+</script>
+<details class="run"><summary>실행 결과 보기 (정식 코드 f5.py 를 실제로 실행한 출력)</summary><pre>[ours] n=1337 mean=13279 median=9386 max=63770 mean/median=1.41 skew=1.52
+  top 1% share=0.0393  top 10% share=0.3179  bottom 50% share=0.1853
+  smokers: 20.5% of people, 49.5% of total charges
+[freMTPL2sev] n=26444 mean=2265.51 median=1172.00 max=4075400.56 mean/median=1.93
+  top 1% share=0.3799  top 10% share=0.5992  bottom 50% share=0.1510
+[danish] n=2167 mean=3.39 median=1.78 max=263.25 mean/median=1.90
+  top 1% share=0.1721  top 10% share=0.4597  bottom 50% share=0.1986</pre></details><p class="cap">사례 카드 전체는 <a href="data/cases.json">data/cases.json</a> 에 있습니다(부록 B 형식, 회귀용 tail_share · top10_share 사용).</p></div></div></section><section class="part" id="prompt"><div class="wrap"><div class="part-head" style="--kc:var(--seq)"><div class="hex">✦</div><h2>AI와 함께 더 공부하기<span class="en">AI tutor prompt</span></h2><p>ChatGPT·Claude·Gemini 등에 그대로 붙여 넣으세요. [ ] 안만 바꾸면 됩니다.</p></div><div class="body"><div class="prompt"><pre id="prompt-5"># 역할
+당신은 보험 데이터 분석을 가르치는 친절한 튜터입니다. 저는 「AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전」 2부 5편(과제 문항 5) 「꼬리가 긴 금액은 어디에나 있다」을 공부하고 있습니다.
+
+# 배경
+- 데이터: 공개 학습용 건강보험 의료비 데이터 1,338행 (https://raw.githubusercontent.com/fintech-data/Revolution/main/data/insurance.csv)
+- 열: age(나이) · sex(성별) · bmi(체질량지수) · children(자녀 수) · smoker(흡연 여부) · region(미국 내 지역 4곳) · charges(1년 의료비 청구 금액, 달러 = 맞힐 대상)
+- 완전히 같은 행 1건을 빼고 1,337행을 씁니다. 목표값 charges 는 자르거나 고치지 않습니다(고액은 오류가 아니라 꼬리).
+- 검증은 charges 10분위로 층화한 StratifiedKFold(n_splits=5, shuffle=True, random_state=42) 입니다. fold별 점수 5개와 평균 ± 표준편차를 냅니다.
+- 기준선: 모두에게 학습 데이터 평균만 답하기 (R² = 0 근처)
+- 내 수준: [예: 파이썬은 조금, 통계는 처음]
+
+# 해 줄 일
+1. 오른쪽 꼬리가 긴 금액 + 소수 집단이 고액을 좌우하는 실제 사례를 2개 찾아 주되, 반드시 열어 볼 수 있는 출처(제목 · 저자/기관 · 연도 · URL)를 함께 주세요. 확인할 수 없는 숫자는 쓰지 마세요.
+2. 각 사례의 꼬리 지표(상위 1% 또는 10% 가 차지하는 비율)를 우리 데이터와 같은 방법으로 비교하는 표를 만들어 주세요.
+3. 사례마다 (a) 요약 (b) 같은 점 (c) 왜 생기나 (d) 실무 전략을 정리하고, 증강 · 합성 · 목표값 자르기는 쓰지 않는다는 원칙과 충돌하는 전략이 있으면 표시해 주세요.
+4. 제 데이터에 적용할 전략 우선순위 3개와 각각의 확인 지표를 제안해 주세요.
+
+# 반드시 지킬 것
+- 기호나 약어(MAE, RMSE, R² 등)는 처음 나올 때 한 줄로 설명하기
+- 데이터 증강(합성 행 · 행 복제 · 정답에 잡음 넣기)은 쓰지 않기
+- 전처리(표준화 · 인코딩)는 Pipeline 안에서 학습 데이터에만 fit (데이터 누수 금지)
+- 여유분 · 하이퍼파라미터는 학습 데이터의 교차검증으로만 고르기 (시험 데이터는 마지막에 한 번만)
+- R² 하나만 보고하지 않기: MAE · RMSE · 고액(상위 10%) MAE · 과소 추정 비율을 기준선과 함께
+- 로그 변환을 썼다면 예측을 달러로 되돌려 평가하기
+- 코드는 Google Colab 에서 바로 실행되게, random_state=42 고정, 내가 바꿀 줄에는 # [변경] 주석
+
+내 결과: [숫자 붙여 넣기 — fold별 점수와 평균 ± 표준편차]
+내가 쓴 문장: [붙여 넣기]
+
+# 답변 형식
+1) 내 숫자를 기준선과 비교해 해석  2) 내 문장에서 틀리거나 과장된 곳  3) 답을 바로 주기 전에, 내가 스스로 확인할 질문 3개</pre></div><div class="btns"><button class="btn small" data-copy="prompt-5">프롬프트 복사</button><button class="btn small" data-save="prompt-5" data-name="ai_prompt_5.txt">.txt 받기</button></div></div></div></section><section class="part" id="glossary"><div class="wrap"><div class="part-head" style="--kc:var(--core)"><div class="hex">?</div><h2>용어 사전<span class="en">Glossary</span></h2><p>비유로 먼저, 뜻은 그다음.</p></div><div class="body"><dl class="gloss"><div><dt>꼬리 비율 (tail share)</dt><dd><i>앞줄 몇 명이 몫을 얼마나 가져가나.</i> 금액 큰 순서로 상위 p% 가 전체 금액에서 차지하는 비율. 우리 상위 1% = 3.9%.</dd></div><div><dt>집중 곡선</dt><dd><i>볼록할수록 몰려 있다.</i> 가로 = 사람 비율(큰 금액부터), 세로 = 누적 금액 비율. 대각선 = 모두 같은 금액.</dd></div><div><dt>심도 (severity)</dt><dd><i>사고 한 건의 크기.</i> 보험에서 사고 1건당 손해액. 빈도(건수)와 나눠 모델링한다.</dd></div><div><dt>감마 GLM</dt><dd><i>양수 금액용 회귀.</i> 금액이 0 보다 크고 오른쪽으로 긴 분포를 가정한 일반화 선형 모델.</dd></div><div><dt>트위디 GLM</dt><dd><i>0 과 금액을 한 번에.</i> 0 이 많고 나머지는 양수 금액인 순보험료를 한 모델로 맞힌다.</dd></div><div><dt>극값 이론 (EVT)</dt><dd><i>꼬리 끝만 따로 보기.</i> 임계값을 넘는 큰 손해에 일반화 파레토 분포를 맞춘다(McNeil 1997).</dd></div><div><dt>분위 회귀</dt><dd><i>평균 대신 상위 몇 % 를 맞히기.</i> 예: 75% 분위 = 4명 중 3명은 이보다 적게 쓰는 금액. 1부 4편의 비용 비 3 : 1 과 연결.</dd></div><div><dt>2단계 모델</dt><dd><i>쓸까, 얼마나.</i> 0 원이 많은 데이터에서 ‘청구 여부’ 분류와 ‘청구 금액’ 회귀를 나눠 곱한다.</dd></div></dl></div></div></section><section class="part" id="author-sec"><div class="wrap"><div class="body"><a class="teach-link" href="answers.html#a5">강사·튜터라면 → 교육자용 정답 (5편): 정답 · 채점 기준 · 강의 멘트</a>
+<div class="card"><h3>글 · 안상선 ((주)M-Robo 대표)</h3><p class="cap">(주)M-Robo 대표. 금융·보험 데이터와 AI를 현장에서 쓰는 방법을, 버튼만 눌러 따라 할 수 있는 교재로 만듭니다.</p></div></div></div></section><section class="outro" id="outro"><div class="wrap"><div class="body"><h2>수고하셨습니다!</h2><img class="scene" src="assets/s5.webp" alt="자동차 · 화재 건물 · 병원 침대 · 영수증 더미 네 개의 꼬리를 줄자로 재어 비교하는 조교와 식구들" width="1440" height="800" loading="lazy"><div class="chat"><div class="say actuary"><div class="av" data-face="explain" aria-hidden="true"><img src="assets/av_actuary_explain.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>박사<span class="npc" title="NPC">NPC</span></b><ul><li>꼬리 비율로 비교: 상위 1% 가 우리 3.9% · 자동차보험 손해액 38.0% · 재보험 화재 17.2% · 미국 의료비(MEPS) 21.7%</li><li>공통 구조: 소수가 큰 몫을 가진다. 우리 데이터에서는 흡연자 20.5% 가 금액의 49.5%</li><li>그래서 전략 순서: ① 소수 집단의 모양을 모델에 ② 그룹별 · 구간별 오차 보고 ③ 분포에 맞는 손실 — 꼬리 무게를 재고 고른다</li></ul></div></div><div class="say bomi"><div class="av" data-face="proud" aria-hidden="true"><img src="assets/av_bomi_proud.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>조교</b><p>사례를 찾을 때 숫자를 직접 다시 계산해 보니까, 출처를 믿는 것과 확인하는 것이 다르다는 걸 알았어요.</p></div></div><div class="say fly"><div class="av" data-face="side" aria-hidden="true"><img src="assets/av_fly_side.webp" alt="" width="160" height="160" loading="lazy"></div><div class="sbub"><b>초파리 연구원</b><p>그런데 진짜 의료비는 0 원인 사람이 절반 가까이일 텐데요? 그런 데이터면 ‘얼마나’보다 ‘쓸까 말까’부터 맞혀야 하지 않아요? 저는 두 달 사는 동안 병원비가 0 원이라 궁금해요.</p></div></div></div><div class="nav-eps"><a class="btn" href="4_html_deploy.html">← 이전 편</a><a class="btn" href="index.html">처음 화면</a><a class="btn primary" href="index.html">처음 화면으로 →</a></div></div></div></section></main><footer><div class="wrap"><p><b>꼬리가 긴 금액은 어디에나 있다</b> · AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전</p><p>글 · 안상선 ((주)M-Robo 대표)</p><p><b>설명용 모형인 것:</b> 이 시리즈는 공개 학습용 건강보험 의료비 데이터(1,338행)를 그대로 씁니다. 가상 데이터를 만들거나 데이터를 증강하지 않습니다. 완전히 같은 행 1건만 빼고, 목표값(charges)은 자르거나 고치지 않습니다. 사례의 숫자는 각 출처의 값이거나 공개 데이터 파일을 직접 계산한 값이며, 사례마다 어느 쪽인지 적었습니다.</p><p><b>주의:</b> 이 시리즈는 교육용 설명입니다. 보험 가입 · 보험료 · 보험금 심사 · 투자 · 의료에 대한 조언이 아닙니다. 데이터는 공개 학습 데이터 원본이며, 실제 보험사의 현재 보험료 산정 · 심사 기준을 뜻하지 않습니다. 건강 정보(흡연 · BMI)는 설명용이며 의료 조언이 아닙니다. 실제 보험료 산정에서 성별 · 지역 · 나이 같은 특성의 사용은 감독 규정에 따라 금지되거나 제한될 수 있습니다.</p><p><b>데이터:</b> 공개 학습용 Medical Cost(insurance.csv) 데이터 (<a href="https://raw.githubusercontent.com/fintech-data/Revolution/main/data/insurance.csv">원본 CSV</a>) · 저장소 사본 <a href="data/insurance.csv">data/insurance.csv</a> (md5 <span class="mono">d5364d06246fb4bfa4cc7d1ee89ebd0d</span>) · 나누기 <a href="data/split.csv">data/split.csv</a></p><p><b>참고:</b> scikit-learn User Guide (Linear Models, Nearest Neighbors, Decision Trees, Ensembles, Model evaluation) · McNeil (1997) ASTIN Bulletin 27(1) · Freitas 외 (2012) BMC Health Services Research 12:265 · AHRQ MEPS Statistical Brief #497 · #560 · scikit-learn Tweedie regression 예제</p><p><a href="https://creativecommons.org/licenses/by-nc/4.0/deed.ko">CC BY-NC 4.0</a> — 출처 표기 예: “AI(인공지능) x 비즈니스 #1 인슈어테크_04_회귀모델_실전, 글 · 안상선 ((주)M-Robo 대표), CC BY-NC 4.0”</p></div></footer>
+<p id="lang-note" class="note" hidden style="position:fixed;bottom:12px;left:12px;right:12px;z-index:30"></p>
+<script>const SITE="https://adminmrobo.github.io/ai-biz-insurtech-04/";
+// ---------- 공통: 테마 색 읽기 ----------
+function cssv(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+const REDRAW=[];function onTheme(f){REDRAW.push(f)}
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>REDRAW.forEach(f=>f()))}catch(e){}
+new MutationObserver(()=>REDRAW.forEach(f=>f())).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+// 캔버스 준비 (선명하게)
+function prep(cv,h){const r=cv.getBoundingClientRect();const w=Math.max(200,r.width||cv.parentNode.clientWidth||600);const d=window.devicePixelRatio||1;cv.width=w*d;cv.height=h*d;cv.style.height=h+'px';const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);return {c,w,h}}
+let RZ;addEventListener('resize',()=>{clearTimeout(RZ);RZ=setTimeout(()=>REDRAW.forEach(f=>f()),150)});
+const fmtP=(x,d=1)=>(x*100).toFixed(d)+'%';
+const nf=n=>Number(n).toLocaleString('en-US');
+// ---------- 확인 문제 ----------
+document.querySelectorAll('.q').forEach(q=>{const ok=q.dataset.ok,fb=q.querySelector('.fb');q.querySelectorAll('.opts button').forEach(b=>b.addEventListener('click',()=>{
+ q.querySelectorAll('.opts button').forEach(x=>x.classList.remove('right','wrong'));
+ if(b.dataset.i===ok){b.classList.add('right');fb.innerHTML='<b>정답입니다.</b> '+q.dataset.ex}else{b.classList.add('wrong');fb.innerHTML='<b>다시 생각해 보세요.</b> '+(b.dataset.why||'')}}))});
+// ---------- 복사 · 내려받기 ----------
+function copyTxt(t,btn){const o=btn.textContent;const done=()=>{btn.textContent='복사됨';setTimeout(()=>btn.textContent=o,1300)};try{navigator.clipboard.writeText(t).then(done,()=>{btn.textContent='직접 선택해 복사하세요'})}catch(e){btn.textContent='직접 선택해 복사하세요'}}
+function saveFile(name,text,type){try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type||'text/plain'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}catch(e){}}
+function toIpynb(src,formal){const lines=src.split('\n');const cells=[];let cur=[];
+ lines.forEach(l=>{if(/^# [①-⑳]/.test(l)&&cur.join('').trim()){cells.push(cur);cur=[]}cur.push(l)});if(cur.join('').trim())cells.push(cur);
+ const mk=a=>{while(a.length&&!a[a.length-1].trim())a.pop();return {cell_type:'code',metadata:{},execution_count:null,outputs:[],source:a.map((l,i)=>i<a.length-1?l+'\n':l)}};
+ const out=cells.map(mk).filter(c=>c.source.join('').trim());
+ if(formal)out.unshift(mk(['# 공통 코드 내려받기 (Colab)','!wget -q -O common.py '+SITE+'code/common.py']));
+ return JSON.stringify({cells:out,metadata:{kernelspec:{name:'python3',display_name:'Python 3'},language_info:{name:'python'}},nbformat:4,nbformat_minor:5},null,1)}
+document.querySelectorAll('.codebox').forEach(box=>{const tabs=[...box.querySelectorAll('.tabs button')];const pre=box.querySelector('pre code');const info=box.querySelector('.tools span');
+ let curId=null;function show(b){tabs.forEach(t=>t.setAttribute('aria-selected',t===b?'true':'false'));curId=b.dataset.src;const s=document.getElementById(curId);pre.textContent=s.textContent.replace(/^\n/,'');info.textContent=b.dataset.info||''}
+ tabs.forEach(t=>t.addEventListener('click',()=>show(t)));if(tabs[0])show(tabs[0]);
+ box.querySelector('[data-act=copy]').addEventListener('click',e=>copyTxt(pre.textContent,e.currentTarget));
+ box.querySelector('[data-act=py]').addEventListener('click',()=>{const s=document.getElementById(curId);saveFile(s.dataset.file,pre.textContent,'text/x-python')});
+ box.querySelector('[data-act=nb]').addEventListener('click',()=>{const s=document.getElementById(curId);saveFile(s.dataset.file.replace(/\.py$/,'.ipynb'),toIpynb(pre.textContent,s.dataset.formal==='1'),'application/json')})});
+document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',e=>copyTxt(document.getElementById(b.dataset.copy).textContent,e.currentTarget)));
+document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click',()=>saveFile(b.dataset.name,document.getElementById(b.dataset.save).textContent)));
+// ---------- 상태 캐릭터 ----------
+function robo(id,st){const w=document.getElementById(id);if(!w||w.dataset.st===st)return;w.dataset.st=st;w.querySelectorAll('[data-rs]').forEach(e=>e.hidden=e.dataset.rs!==st)}
+// ---------- 식구 카드: 모습 바꾸기 ----------
+document.querySelectorAll('.crew .moods button').forEach(b=>b.addEventListener('click',()=>{const card=b.closest('.crew');
+ card.querySelectorAll('.moods button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+ card.querySelectorAll('.cf').forEach(f=>f.classList.toggle('on',f.dataset.face===b.dataset.fb))}));
+// ---------- 막대 (기준선 포함) ----------
+function setBar(el,v,base){el.querySelector('.fill').style.width=Math.max(0,Math.min(1,v))*100+'%';const bl=el.querySelector('.base');if(bl){if(base==null)bl.hidden=true;else{bl.hidden=false;bl.style.left='calc('+base*100+'% - 1px)'}}el.querySelector('.v').textContent=fmtP(v)}
+
+// ---------- 회귀용 도우미 ----------
+const fmtD=(x,d=0)=>(x<0?'−$':'$')+Math.abs(x).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
+const fmt=(x,d=3)=>Number(x).toFixed(d);
+function setBarV(el,frac,base,txt){el.querySelector('.fill').style.width=Math.max(0,Math.min(1,frac))*100+'%';const bl=el.querySelector('.base');if(bl){if(base==null)bl.hidden=true;else{bl.hidden=false;bl.style.left='calc('+Math.max(0,Math.min(1,base))*100+'% - 1px)'}}el.querySelector('.v').textContent=txt}
+// 간단한 좌표 그림: plot(cv,{h,x:[min,max],y:[min,max],xt:[...],yt:[...],xl,yl,xf,yf,draw:(c,X,Y)=>{}})
+function plot(cv,o){const {c,w,h}=prep(cv,o.h||320);const L=o.left||62,R=12,T=12,B=o.bottom||40;const X=v=>L+(v-o.x[0])/(o.x[1]-o.x[0])*(w-L-R);const Y=v=>h-B-(v-o.y[0])/(o.y[1]-o.y[0])*(h-T-B);
+ c.clearRect(0,0,w,h);c.font='11px '+cssv('--f-mono');c.lineWidth=1;
+ (o.yt||[]).forEach(t=>{c.strokeStyle=cssv('--grid');c.beginPath();c.moveTo(L,Math.round(Y(t))+.5);c.lineTo(w-R,Math.round(Y(t))+.5);c.stroke();c.fillStyle=cssv('--muted');c.textAlign='right';c.fillText((o.yf||String)(t),L-6,Y(t)+4)});
+ (o.xt||[]).forEach(t=>{c.fillStyle=cssv('--muted');c.textAlign='center';c.fillText((o.xf||String)(t),X(t),h-B+16)});
+ c.strokeStyle=cssv('--line');c.strokeRect(L+.5,T+.5,w-L-R-1,h-T-B-1);
+ c.fillStyle=cssv('--muted');c.textAlign='center';if(o.xl)c.fillText(o.xl,L+(w-L-R)/2,h-6);
+ if(o.yl){c.save();c.translate(12,T+(h-T-B)/2);c.rotate(-Math.PI/2);c.fillText(o.yl,0,0);c.restore()}
+ c.save();c.beginPath();c.rect(L,T,w-L-R,h-T-B);c.clip();if(o.draw)o.draw(c,X,Y,w,h);c.restore();return {c,X,Y,w,h,L,R,T,B}}
+function dot(c,x,y,r,col,a){c.globalAlpha=a==null?1:a;c.fillStyle=col;c.beginPath();c.arc(x,y,r,0,7);c.fill();c.globalAlpha=1}
+function line(c,pts,col,lw,dash){c.strokeStyle=col;c.lineWidth=lw||2;c.setLineDash(dash||[]);c.beginPath();pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.stroke();c.setLineDash([]);c.lineWidth=1}
+const kfmt=v=>v>=1000?'$'+(v/1000).toFixed(0)+'k':'$'+v;
+
+const D={"cases":[{"key":"motor","field":"자동차보험 손해액 (severity 회귀)","name":"프랑스 자동차 대인·대물배상 손해액 freMTPL2sev (CASdatasets)","short":"자동차보험 손해액","rate_label":"상위 1% 손해가 차지하는 금액 비율","rate_text":"38.0% (손해 26,444건 중 상위 264건)","summary":"프랑스 자동차보험 제3자 배상책임(MTPL) 계약의 손해 금액 26,444건. 중앙값 1,172, 평균 2,265.5, 최대 4,075,401(원 자료의 금액 단위). 보험료 산정 교재와 scikit-learn 예제에서 ‘빈도 × 심도’ 모델의 표준 예로 쓰입니다.","same":"금액 하나를 맞히는 회귀, 오른쪽 꼬리가 긴 분포, 그리고 <b>소수의 큰 사고가 전체 금액의 큰 몫</b>(상위 1% 가 38.0%, 상위 10% 가 59.9%). 우리 데이터의 흡연자처럼, 소수 집단이 금액을 좌우합니다.","why":"사고 대부분은 소액 수리지만, 드물게 사람이 다치거나 장기 배상으로 이어지면 금액이 수백~수천 배가 됩니다. 평균 2,266 가 중앙값 1,172 의 1.93배입니다.","strategy":"빈도(포아송)와 심도(감마 GLM)를 나눠 모델링하고, 순보험료는 트위디 GLM 으로 한 번에 맞히기도 합니다(scikit-learn 예제). 이 예제는 계산 편의상 손해액을 200,000 에서 잘랐지만, <b>우리는 목표값을 자르지 않습니다</b>. 대형 손해는 따로 분리해 모델링하는 쪽을 택합니다.","sources":[["Tweedie regression on insurance claims (scikit-learn 예제, 1.4판 문서)","https://scikit-learn.org/1.4/auto_examples/linear_model/plot_tweedie_regression_insurance_claims.html"],["freMTPL2sev 데이터 파일 (CASdatasets R 패키지 저장소, dutangc/CASdatasets)","https://raw.githubusercontent.com/dutangc/CASdatasets/master/data/freMTPL2sev.rda"]],"note":"건수 · 중앙값 · 평균 · 최대 · 상위 비율은 위 데이터 파일을 f5.py 로 직접 읽어 계산한 값입니다(출처 문서의 숫자가 아님). 금액 단위는 원 자료를 따릅니다.","tail_share":0.3798643155348226,"top10_share":0.5992149823892289,"zero_share":null,"computed":true},{"key":"reins","field":"재보험 대형사고 (극단 꼬리)","name":"덴마크 화재 대형 손해 danish (Copenhagen Re, 1980–1990)","short":"재보험 대형사고","rate_label":"상위 1% 손해가 차지하는 금액 비율","rate_text":"17.2% (손해 2,167건 중 상위 21건)","summary":"코펜하겐 재보험사가 모은 1980–1990년 덴마크 화재 대형 손해 2,167건(1985년 가치, 백만 덴마크 크로네). 중앙값 1.78, 최대 263.25. 극값 이론(EVT) 교재의 대표 데이터입니다.","same":"모든 행이 이미 ‘큰 손해’인데도 그 안에서 다시 꼬리가 깁니다. 상위 1% 가 17.2%, 상위 10% 가 46.0% 를 차지합니다.","why":"화재 손해의 크기는 건물 규모 · 번짐 · 업무 중단 같은 요인이 곱해져 커지므로, 몇 건이 나머지 수백 건을 합친 것보다 큽니다. McNeil(1997)은 가장 큰 손해 1건을 빼기만 해도 꼬리 모수 추정이 0.50 → 0.39, 0.999 분위수가 95 → 77 로 바뀐다고 보고했습니다.","strategy":"임계값 위의 초과분에 일반화 파레토 분포(GPD)를 맞추는 극값 이론(peaks over threshold, 최대우도 추정)으로 꼬리를 따로 모델링합니다(McNeil, 1997). 결과가 가장 큰 몇 건에 민감하므로 임계값을 바꿔 가며 확인합니다.","sources":[["McNeil, A. J. (1997). Estimating the Tails of Loss Severity Distributions Using Extreme Value Theory. ASTIN Bulletin 27(1)","https://www.cambridge.org/core/services/aop-cambridge-core/content/view/745048C645338C953C522CB29C7D0FF9/S0515036100011934a.pdf/estimating-the-tails-of-loss-severity-distributions-using-extreme-value-theory.pdf"],["danish: Danish reinsurance claim dataset (fitdistrplus 문서)","https://search.r-project.org/CRAN/refmans/fitdistrplus/html/danish.html"],["danish 데이터 파일 (evir R 패키지 저장소)","https://raw.githubusercontent.com/cran/evir/master/data/danish.rda"]],"note":"2,167건 · 중앙값 · 최대 · 상위 비율은 evir 패키지의 danish 파일을 f5.py 로 직접 계산했습니다. McNeil(1997)의 분석은 1백만 크로네 초과 2,156건을 썼고, 꼬리 모수 0.497(임계값 10)은 논문 값입니다.","tail_share":0.17213199111676575,"top10_share":0.4596984845695077,"zero_share":null,"computed":true},{"key":"los","field":"병원 재원일수 (기간 회귀)","name":"포르투갈 공공 급성기 병원 장기 재원 이상치 (2000–2009)","short":"병원 재원일수","rate_label":"상위 3.9% 장기 재원이 차지하는 입원일수 비율","rate_text":"19.2% (입원 9,253,087건 중 3.9%)","summary":"포르투갈 공공 급성기 병원의 입원 약 925만 건을 분석해, 진단군(DRG) · 연도별 기준(기하평균 + 2 표준편차)을 넘는 장기 재원을 찾았습니다. 장기 재원은 3.9%, 이들이 전체 입원일수의 19.2%를 차지했습니다.","same":"재원일수도 오른쪽으로 긴 분포(논문: 대략 로그정규)이고, 소수(3.9%)가 전체의 큰 몫(19.2%)을 씁니다. 장기 재원의 중앙값 25일 · 평균 35.5일, 나머지는 중앙값 4일 · 평균 6.0일.","why":"합병증 · 동반 질환 · 퇴원 후 갈 곳 같은 요인이 겹치면 입원이 길어지고, 그런 경우는 드물지만 길이가 몇 배입니다.","strategy":"논문은 로그 변환이 치우침을 줄인다고 쓰고, 진단군별 기준으로 이상치를 ‘따로 분류’한 뒤 로지스틱 회귀(GEE)로 이상치가 될 요인을 분석했습니다. 평균 재원일수 하나만 보고하지 않고, 이상치 몫을 따로 보는 방식입니다.","sources":[["Freitas, A. 외 (2012). Factors influencing hospital high length of stay outliers. BMC Health Services Research 12:265","https://bmchealthservres.biomedcentral.com/track/pdf/10.1186/1472-6963-12-265"]],"note":"숫자는 모두 논문 값입니다. 상위 1% 비율은 논문에 없어 비교 그림에는 (3.9%, 19.2%) 한 점만 표시합니다.","tail_point":[0.039,0.192],"tail_share":null,"top10_share":null,"zero_share":null,"computed":false},{"key":"meps","field":"의료비 지출 집중 (인구 전체)","name":"미국 민간인 비시설 인구의 의료비 지출 집중 (AHRQ MEPS, 2022)","short":"의료비 지출 집중","rate_label":"상위 1% 사람이 차지하는 의료비 비율","rate_text":"21.7% (상위 1% = 연 $80,990 이상)","summary":"미국 가구 의료비 패널조사(MEPS) 2022년: 상위 1%가 전체 의료비의 21.7%, 상위 5%가 49.7%, 상위 10%가 65.9%를 썼고, 하위 50%는 2.8%만 썼습니다. 상위 10%의 기준은 연 $16,202 이상.","same":"우리 데이터와 같은 ‘사람 1명의 1년 의료비’입니다. 다만 집중이 훨씬 강합니다: 우리 데이터의 상위 1% 는 3.9%, 하위 50% 는 18.5%.","why":"AHRQ 는 고령과 여러 만성질환이 지출이 고르지 않은 이유의 일부라고 설명합니다(2014년 보고서 #497). 의료비는 대부분의 사람에게 작고, 큰 치료가 필요한 소수에게 몰립니다.","strategy":"고액 지출자 집단의 특성을 따로 분석합니다(보고서 제목 그대로 ‘고액 지출자의 특성’). 모델링에서는 평균 하나가 아니라 상위 구간 오차를 따로 보고, 0 원 근처가 많은 경우 ‘쓸까 · 얼마나’를 나눈 2단계 모델을 씁니다(실무 일반론).","sources":[["Hernandez-Viver, A. & Mitchell, E. M. (2025.3). Concentration of Healthcare Expenditures and Selected Characteristics of People with High Expenses, 2018–2022. AHRQ MEPS Statistical Brief #560","https://meps.ahrq.gov/data_files/publications/st560/stat560.shtml"],["Mitchell, E. M. (2016.11). Concentration of Health Expenditures in the U.S. Civilian Noninstitutionalized Population, 2014. AHRQ MEPS Statistical Brief #497","https://meps.ahrq.gov/mepsweb/data_files/publications/st497/stat497.shtml"]],"note":"숫자는 보고서 값입니다. 우리 데이터(최소 $1,122, 0 원 없음)와 달리 MEPS 에는 의료비가 없는 사람도 포함되어 하위 50% 비율이 작습니다. 원래 분야 목록의 ‘보증 수리비’는 꼬리 비율을 직접 확인할 수 있는 공개 출처를 찾지 못해 이 사례로 바꿨습니다.","tail_points":[[0.01,0.217],[0.05,0.497],[0.1,0.659],[0.5,0.972]],"tail_share":0.217,"top10_share":0.659,"zero_share":null,"computed":false}],"ours":{"name":"우리 데이터 (건강보험 의료비 1,337명)","tail_share":0.039285561149620556,"top10_share":0.31789152406099347,"bottom50":0.1852761667254216,"zero_share":0.0,"smoker_people":0.2049364248317128,"smoker_amount":0.4946306073923848},"curves":{"ours":[0.0,0.039285561149620556,0.07679544103476102,0.11034374753391964,0.14250148681890817,0.17580160164867395,0.20551682426193488,0.2366435312771194,0.2646354937974482,0.29169847010113525,0.31985381476376623,0.3450253107820393,0.36853855189980117,0.39139679765619406,0.41138204778866305,0.4317138918730242,0.4497480682527072,0.4670749204422059,0.4847769962665565,0.5005500290165544,0.5157611062332697,0.5314751108220336,0.5456049822623296,0.5603582624985458,0.5734894230184087,0.5860404745255565,0.5988677363122453,0.6100229995490175,0.6206238673903993,0.6318475324091033,0.6420319229820614,0.6519676840542189,0.6624385480348545,0.6719700307373145,0.6820405618128467,0.6912274675390817,0.7002251967337498,0.7097468042351924,0.7184437962604898,0.7270337763872271,0.7361067937755129,0.7444169914537543,0.7532269879854073,0.761267256697348,0.7691487396186656,0.7774595761282433,0.7850074451812066,0.7923895545060208,0.8001696956148777,0.8072526485789766,0.8141951601153256,0.8215191788533198,0.8281547959099305,0.8351268865870481,0.8414395701402679,0.8476788322963017,0.8542563017091239,0.8602372506821235,0.8660624869353666,0.8721246067176872,0.8775992253390843,0.8833608601454687,0.8886124971653651,0.8937505462395787,0.8991008147459567,0.9039408771244948,0.9086579664407711,0.9136207412697832,0.9181062197235531,0.922784613648661,0.9269257722785276,0.9309044193917854,0.9350876619321216,0.9388539805854026,0.9424726072501839,0.9462580018842459,0.9496813690923699,0.9529899834041529,0.9564725965576502,0.95960779545916,0.9628313332628624,0.965713285088165,0.9684608396295299,0.9712583643372883,0.9737334737546735,0.9760943475565601,0.9785087747137317,0.9805958941904873,0.9827371524337846,0.9846142044385521,0.9863991549156733,0.9881860742975433,0.989785780038239,0.991326903753066,0.9928848879569995,0.9942370117476298,0.995602191930002,0.9968341846361232,0.99802741097063,0.9991479224624729,1.0],"motor":[0.0,0.3798643155348226,0.43369324801635484,0.46989983886702974,0.4980414733015245,0.520851807000347,0.5403894050258528,0.5574642848150084,0.5726338679458444,0.5864410094563665,0.5992149823892289,0.6110103921990032,0.6219925939108217,0.6322309392912858,0.6417451800592318,0.6506549290291586,0.658966192956304,0.6667439898834264,0.6740983175768959,0.6810095059413773,0.687625061329253,0.6939386741938112,0.7000032978231321,0.7058397099885291,0.711549638944118,0.7169876029007991,0.7222965149277156,0.7276222397266704,0.7329278674509121,0.7382535922498671,0.7435592199741087,0.7488849447730633,0.754190572497305,0.75951629729626,0.7648219250205017,0.7701275527447435,0.7754532775436984,0.78075890526794,0.7860846300668948,0.7913902577911364,0.796715982590091,0.8020216103143328,0.8073272380385745,0.8126529628375293,0.8179055907032268,0.8230897679992193,0.8282543823620193,0.833438559658012,0.838603174020812,0.8437873513168045,0.8489519656796045,0.8541165800424048,0.859286211997114,0.864271236797096,0.8692613170796516,0.874232566870575,0.8792226471531305,0.8841938969440538,0.8891839772266092,0.8941552270175326,0.8991264768084556,0.9041165570910112,0.9090878068819344,0.9140778871644899,0.9190490643455501,0.9240386138249697,0.9290093348157875,0.9339800558066053,0.9388076220292416,0.943318332163466,0.947599399000653,0.9515945699273167,0.9553510498672606,0.9588831821895052,0.9622276362101982,0.9653595793562082,0.9682905285533154,0.9710569927082924,0.9737098065704131,0.9763585410935895,0.9789007758096785,0.9813751036119793,0.9837402879405042,0.9859285847946284,0.9879053594366403,0.9897024795842556,0.991316581982006,0.9927512996268277,0.9940137539605446,0.9951042928428215,0.9960430918004076,0.9968230737919932,0.9974465872041575,0.9979267513872428,0.9983244209177732,0.9986846209213903,0.9990245404060658,0.9993539171055592,0.9996584313533795,0.9999033340721456,1.0],"reins":[0.0,0.17570566570753282,0.23732620663157727,0.28663461000008156,0.32547626900914756,0.356472945147457,0.3831528462719414,0.40590473504482705,0.42519520897269475,0.44339498922720616,0.4604566804099754,0.47594268242548315,0.4912032635949088,0.5055402671590854,0.5185955446492836,0.531696571039191,0.5441822500616477,0.555759762201609,0.5673536684854534,0.5785826395835313,0.588880959750387,0.5991138569247373,0.6090274065439789,0.6181729193483413,0.6274639726723725,0.6364676120899238,0.6448204983682607,0.6533310376761465,0.6615795228285195,0.6692104144449645,0.6770096627732292,0.684597213216168,0.6917042113258822,0.6989653394537333,0.7060398622256709,0.7126580017548746,0.7194190288478939,0.7260398495383743,0.7322247122844496,0.7385993861750375,0.7448559367602583,0.7507087115256601,0.7567411297983251,0.7626670832263058,0.7682447291164484,0.7740059332470873,0.779691438561135,0.7850428670899844,0.7905822953846959,0.7960269099561206,0.8013830947524015,0.8064405507934692,0.8116738422745697,0.8168467985123954,0.8217080950343986,0.8267541963053643,0.8317444299239212,0.8364598182154706,0.8413541040037249,0.8461818884668897,0.8507326890919532,0.8554439329058288,0.8601028122699464,0.8644906887838908,0.8690224532167985,0.8734988800699435,0.8777245835493253,0.8821083508540044,0.886443659443212,0.8905442013595509,0.8947717862592882,0.8989578546839246,0.9029242553337742,0.9070180661861426,0.9110622225651406,0.9148677577200319,0.9188180552201695,0.9227144812762762,0.9263848233811063,0.9301963024318034,0.9339720556573341,0.9375482321059242,0.9412585365868931,0.9449129620858853,0.9483579893718302,0.9519294811517856,0.9554353103887157,0.9587458932055278,0.9621950879560055,0.9655891280379175,0.9687838775206925,0.9721141329167174,0.975412139108265,0.9785152976452972,0.9817276643240755,0.9849108727206858,0.9879196016107811,0.9910349772019865,0.9940951731686573,0.9969940300259583,1.0]}};
+
+
+const CN={ours:'우리 데이터',motor:'자동차보험 손해액',reins:'재보험 대형사고'};
+const CC={ours:()=>cssv('--c-claim'),motor:()=>cssv('--c-no'),reins:()=>cssv('--c-3')};
+let CV='all';
+function drawConc(){const cv=document.getElementById('conc-cv');const show=CV==='all'?['ours','motor','reins']:['ours'];
+ plot(cv,{h:330,x:[0,100],y:[0,1],xt:[0,10,20,30,40,50,60,70,80,90,100],yt:[0,.2,.4,.6,.8,1],xf:v=>v+'%',yf:v=>Math.round(v*100)+'%',xl:'사람 비율 (금액 큰 사람부터)',yl:'누적 금액 비율',draw:(c,X,Y)=>{
+  line(c,[[X(0),Y(0)],[X(100),Y(1)]],cssv('--muted'),1,[4,4]);
+  show.forEach(k=>{const v=D.curves[k];line(c,v.map((y,i)=>[X(i),Y(y)]),CC[k](),k==='ours'?3:2)});
+  if(CV==='all'){D.cases.find(x=>x.key==='meps').tail_points.forEach(p=>{c.fillStyle=cssv('--c-4');c.fillRect(X(p[0]*100)-4,Y(p[1])-4,8,8)});
+   const lp=D.cases.find(x=>x.key==='los').tail_point;c.save();c.translate(X(lp[0]*100),Y(lp[1]));c.rotate(Math.PI/4);c.fillStyle=cssv('--risk');c.fillRect(-4,-4,8,8);c.restore()}}});
+ document.getElementById('conc-legend').innerHTML=show.map(k=>'<span><i style="--c:'+CC[k]()+'"></i>'+CN[k]+'</span>').join('')+(CV==='all'?'<span><i style="--c:var(--c-4);border-radius:1px"></i>MEPS 2022 (보고서 값, 점 4개)</span><span><i style="--c:var(--risk);border-radius:1px"></i>병원 장기 재원 (논문 값, 3.9% → 19.2%)</span>':'')+'<span>— — 모두 같은 금액</span>';
+ document.getElementById('conc-cap').textContent=CV==='all'?'상위 1%: 우리 '+(D.ours.tail_share*100).toFixed(1)+'% · 자동차보험 '+(D.cases[0].tail_share*100).toFixed(1)+'% · 재보험 '+(D.cases[1].tail_share*100).toFixed(1)+'% · MEPS 21.7%. 우리 곡선이 가장 대각선에 가깝습니다(꼬리가 가벼움).':'우리 데이터: 상위 10%가 '+(D.ours.top10_share*100).toFixed(1)+'%, 하위 50%가 '+(D.ours.bottom50*100).toFixed(1)+'%를 씁니다. 0 원이 없어서 아래쪽이 대각선에서 크게 벗어나지 않습니다.'}
+document.querySelectorAll('[data-cv]').forEach(b=>b.addEventListener('click',()=>{CV=b.dataset.cv;document.querySelectorAll('[data-cv]').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));drawConc()}));
+drawConc();onTheme(drawConc);
+// ---------- 사례 카드 ----------
+function showCase(k){const c=D.cases.find(x=>x.key===k);
+ const bar=(lab,v,col)=>v==null?'':'<div class="bar" style="--c:'+col+'"><span>'+lab+'</span><div class="track"><div class="fill" style="width:'+(v*100)+'%"></div></div><span class="v">'+(v*100).toFixed(1)+'%</span></div>';
+ const src=c.sources.map(s=>'<li>'+s[0]+' · <a class="mono" href="'+s[1]+'" rel="noopener">'+s[1].replace(/^https?:\/\//,'').slice(0,60)+'…</a></li>').join('');
+ document.getElementById('case-out').innerHTML='<div class="card"><span class="tagx">'+c.field+'</span><h3>'+c.name+'</h3>'+
+  '<div class="stat"><div><span class="l">'+c.rate_label+'</span><span class="v">'+c.rate_text+'</span></div></div>'+
+  (c.tail_share!=null?'<div class="bars">'+bar('이 사례 상위 1%',c.tail_share,'var(--c-no)')+bar('우리 상위 1%',D.ours.tail_share,'var(--c-claim)')+(c.top10_share!=null?bar('이 사례 상위 10%',c.top10_share,'var(--c-no)')+bar('우리 상위 10%',D.ours.top10_share,'var(--c-claim)'):'')+'</div>':'')+
+  '<p><b>(a) 요약</b> '+c.summary+'</p><p><b>(b) 이 데이터와 같은 점</b> '+c.same+'</p><p><b>(c) 왜 생기나</b> '+c.why+'</p><p><b>(d) 실무 전략</b> '+c.strategy+'</p>'+
+  '<p class="cap"><b>출처</b></p><ul class="cap">'+src+'</ul><p class="cap"><b>숫자 메모</b> '+c.note+'</p></div>'}
+document.querySelectorAll('[data-case]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-case]').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));showCase(b.dataset.case)}));
+showCase(D.cases[0].key);
+</script>
+</body>
+</html>
