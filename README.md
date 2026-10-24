@@ -8,8 +8,8 @@
 
 - 글: 글 · 안상선 ((주)M-Robo 대표)
 - 라이선스: CC BY-NC 4.0 (글·코드·그림). 데이터는 원 출처의 조건을 따릅니다.
-- 공개 주소: https://adminmrobo.github.io/ai-biz-insurtech-04/ (저장소 이름 `insurtech__case_regreesion_model_02` 은 가칭 — 바꾸려면 build/kit.py 의 CFG 와 code/common.py 의 REPO_URL 을 고친 뒤 다시 빌드)
-- 1부 개념편: https://adminmrobo.github.io/ai-biz-insurtech-03/
+- 공개 주소: insurtech__case_regreesion_model_02/ (  바꾸려면 build/kit.py 의 CFG 와 code/common.py 의 REPO_URL 을 고친 뒤 다시 빌드)
+- 1부 개념편: insurtech__case_regreesion_model_01/
 
 ## 언어
 
